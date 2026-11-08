@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Day Trader</title>
+  <meta name="description" content="Day Trader — global risk intelligence: conflict, finance, markets, politics, cyber, weather, social media, headlines and AI news.">
+  <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Day Trader">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="appbar">
+    <a class="brand" href="#/overview" aria-label="Day Trader home">
+      <img src="icons/icon.svg" alt="" width="28" height="28">
+      <span>Day Trader</span>
+    </a>
+    <span class="tagline muted small">Global risk intelligence</span>
+  </header>
+  <nav id="tabs" class="tabbar" aria-label="Risk areas"></nav>
+  <div id="offline" class="notice warn offline" hidden>You are offline — showing cached data.</div>
+  <main id="main" tabindex="-1">
+    <noscript><p class="card">Day Trader needs JavaScript enabled.</p></noscript>
+  </main>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
