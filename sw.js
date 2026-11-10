@@ -1,7 +1,7 @@
 // Service worker: caches the app shell so Day Trader opens instantly and works
 // offline (showing the last cached data). API calls go straight to the network.
 
-const VERSION = 'daytrader-v1';
+const VERSION = 'daytrader-v2';
 const SHELL = [
   './',
   './index.html',
@@ -25,6 +25,7 @@ const SHELL = [
   './js/ui/dom.js',
   './js/ui/feed.js',
   './js/ui/markets.js',
+  './js/ui/commodities.js',
   './js/ui/overview.js',
   './js/ui/settings.js',
 ];

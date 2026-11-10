@@ -6,7 +6,7 @@ import { parseWatchlist, slugify } from '../js/core/settings.js';
 
 test('all required risk areas are present with unique ids', () => {
   const titles = BUILTIN_TABS.map((t) => t.title).join('|');
-  for (const t of ['Military', 'Financial', 'NASDAQ', 'Political', 'Cyber', 'Weather', 'Social', 'Headlines', 'AI']) {
+  for (const t of ['Commodities', 'Military', 'Financial', 'NASDAQ', 'Political', 'Cyber', 'Weather', 'Social', 'Headlines', 'AI']) {
     assert.match(titles, new RegExp(t));
   }
   assert.equal(new Set(BUILTIN_TABS.map((t) => t.id)).size, BUILTIN_TABS.length);
@@ -29,4 +29,14 @@ test('helpers', () => {
   assert.equal(stripHtml('<p>Hello &amp; <b>world</b></p>'), 'Hello & world');
   assert.deepEqual(parseWatchlist('aapl, msft;;  BRK.B <script>'), ['AAPL', 'MSFT', 'BRK.B']);
   assert.equal(slugify('Energy & Oil!'), 'custom-energy-oil');
+});
+
+test('commodities tab groups gold, silver and other commodities', () => {
+  const c = BUILTIN_TABS.find((t) => t.id === 'commodities');
+  assert.equal(c.view, 'commodities');
+  const names = c.groups.flatMap((g) => g.items.map((i) => i.name));
+  assert.ok(names.includes('Gold') && names.includes('Silver'));
+  assert.ok(c.groups.length >= 4);
+  const syms = c.groups.flatMap((g) => g.items.map((i) => i.symbol));
+  assert.equal(new Set(syms).size, syms.length, 'no duplicate symbols');
 });

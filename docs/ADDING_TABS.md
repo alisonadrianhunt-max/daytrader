@@ -50,6 +50,10 @@ Also add the tab to the "all required risk areas" test in `tests/registry.test.m
 | `nvd` | `days`, `max` | Critical CVEs |
 | `rss` | `url`, `name` | Needs the feed to allow CORS, or a CORS proxy set in Settings |
 
+### Changing the commodities list
+
+The Commodities tab reads its groups from the `groups` array on the `commodities` entry in `js/tabs/registry.js`. Each group is `{ id, title, icon, items: [{ symbol, name }] }`. To add a commodity, add `{ symbol: 'XYZ', name: 'Something' }` to a group, or add a new group. The symbol must be a ticker Twelve Data supports on your plan; US-listed ETFs that track the commodity work on the free plan.
+
 ## 3. New source type or new view
 
 * **New data source:** write an async function in `js/sources/adapters.js` that returns normalized items `{ id, title, url, source, publishedAt, summary, severity (0..1), tags }`, add it to `ADAPTERS`, and add a label in `describeSource`. The API must allow browser (CORS) requests. If it has strict rate limits, add its host to `HOST_MIN_INTERVAL_MS` in `js/core/fetcher.js`.

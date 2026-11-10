@@ -10,6 +10,7 @@ Day Trader is a browser-based dashboard that collects **data, analysis and recom
 | ⚔️ Military Conflict | Strikes, troop movements, escalation, ceasefires | GDELT global news, Reddit |
 | 🏦 World Financial System | Central banks, debt, banking stress, inflation, FX | GDELT, Hacker News |
 | 📈 Stocks & NASDAQ | **Buy / Hold / Sell** signals for your watchlist, plus market news | Twelve Data (free key), GDELT |
+| 🪙 Commodities | Gold, silver, platinum, palladium; copper, base metals, lithium, uranium; oil, natural gas, gasoline; corn, wheat, soybeans; sugar, agriculture basket, timber. Grouped by type, each with a **Buy / Hold / Sell** signal and a group verdict | Twelve Data (free key, ETF proxies), GDELT |
 | 🏛️ Political News | Elections, governments, sanctions, unrest | GDELT, Reddit |
 | 🛡️ Cybersecurity Threats | Actively exploited CVEs, critical CVEs, breaches, ransomware | CISA KEV, NIST NVD, GDELT, Hacker News |
 | 🌪️ Weather Events | Severe weather alerts, earthquakes, wildfires, storms, volcanoes | NOAA/NWS, USGS, NASA EONET, GDELT |
@@ -21,7 +22,7 @@ Day Trader is a browser-based dashboard that collects **data, analysis and recom
 ### Analysis & recommendations
 
 * **Risk scoring.** Every item gets a 0–100 risk score from weighted risk keywords and structured severity (earthquake magnitude, CVSS score, NWS severity, CISA "known ransomware use"). Each tab gets an aggregate score and level (Low → Guarded → Elevated → High → Severe) and a list of "risk drivers". The Overview combines the tabs into a World Risk Index.
-* **Buy / Hold / Sell signals.** These come from transparent technical analysis: 20/50/200-day moving averages, RSI(14), MACD(12,26,9), 20-day momentum and volatility. Every signal lists exactly why it was given. *This is educational information, not financial advice.*
+* **Buy / Hold / Sell signals** (stocks and commodities). These come from transparent technical analysis: 20/50/200-day moving averages, RSI(14), MACD(12,26,9), 20-day momentum and volatility. Every signal lists exactly why it was given. *This is educational information, not financial advice.*
 * **🧠 AI briefings (optional).** On any tab, Claude writes an analyst briefing covering the situation, key risks, market implications, what to watch, and a risk rating. It uses your own Anthropic API key, which is stored only in your browser.
 
 ## Getting started
@@ -76,7 +77,7 @@ js/sources/markets.js    price history (Twelve Data)
 js/analysis/risk.js      risk scoring and aggregation
 js/analysis/technicals.js  SMA / RSI / MACD / volatility and the Buy/Hold/Sell engine
 js/ai/claude.js          optional Claude AI briefings
-js/ui/*.js               views: feed, markets, overview, settings
+js/ui/*.js               views: feed, markets, commodities, overview, settings
 tests/                   unit tests (node --test)
 ```
 

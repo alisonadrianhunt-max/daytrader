@@ -9,7 +9,8 @@
 //   title       label shown in the tab bar
 //   icon        emoji / short glyph
 //   description one-line explanation shown under the tab heading
-//   view        'feed' (default) | 'markets' | 'overview'
+//   view        'feed' (default) | 'markets' | 'commodities' | 'overview'
+//   groups      (commodities view) [{ id, title, icon, items: [{ symbol, name }] }]
 //   sources     array of { type, ...options } — see js/sources/index.js
 //   lexicon     optional extra { word: weight } risk keywords for this tab
 //   aiFocus     optional instruction appended to the AI analyst prompt
@@ -70,6 +71,82 @@ export const BUILTIN_TABS = [
       },
     ],
     aiFocus: 'Comment on each signal, flag news that contradicts the technicals, and remind the reader this is not financial advice.',
+  },
+  {
+    id: 'commodities',
+    title: 'Commodities',
+    icon: '🪙',
+    view: 'commodities',
+    description: 'Gold, silver and other metals, energy and agriculture — grouped by type with Buy / Hold / Sell signals.',
+    // Prices come from liquid US-listed ETFs that track each commodity (they work on the
+    // free Twelve Data plan). Edit a group or add a new one here; each entry is
+    // { symbol, name } and needs ~60+ days of daily history.
+    groups: [
+      {
+        id: 'precious',
+        title: 'Precious metals',
+        icon: '🥇',
+        items: [
+          { symbol: 'GLD', name: 'Gold' },
+          { symbol: 'SLV', name: 'Silver' },
+          { symbol: 'PPLT', name: 'Platinum' },
+          { symbol: 'PALL', name: 'Palladium' },
+        ],
+      },
+      {
+        id: 'industrial',
+        title: 'Industrial & battery metals',
+        icon: '🔩',
+        items: [
+          { symbol: 'CPER', name: 'Copper' },
+          { symbol: 'DBB', name: 'Base metals (aluminium, zinc, copper)' },
+          { symbol: 'LIT', name: 'Lithium & battery metals' },
+          { symbol: 'URA', name: 'Uranium' },
+        ],
+      },
+      {
+        id: 'energy',
+        title: 'Energy',
+        icon: '🛢️',
+        items: [
+          { symbol: 'USO', name: 'Crude oil (WTI)' },
+          { symbol: 'BNO', name: 'Crude oil (Brent)' },
+          { symbol: 'UNG', name: 'Natural gas' },
+          { symbol: 'UGA', name: 'Gasoline' },
+        ],
+      },
+      {
+        id: 'grains',
+        title: 'Grains & oilseeds',
+        icon: '🌾',
+        items: [
+          { symbol: 'CORN', name: 'Corn' },
+          { symbol: 'WEAT', name: 'Wheat' },
+          { symbol: 'SOYB', name: 'Soybeans' },
+        ],
+      },
+      {
+        id: 'softs',
+        title: 'Softs & broad agriculture',
+        icon: '☕',
+        items: [
+          { symbol: 'CANE', name: 'Sugar' },
+          { symbol: 'DBA', name: 'Agriculture basket (coffee, cocoa, cattle, grains)' },
+          { symbol: 'WOOD', name: 'Timber' },
+        ],
+      },
+    ],
+    sources: [
+      {
+        type: 'gdelt',
+        query:
+          '(gold OR silver OR copper OR "crude oil" OR OPEC OR "natural gas" OR wheat OR commodities OR "commodity prices" OR lithium OR platinum)',
+        max: 40,
+      },
+    ],
+    lexicon: { embargo: 20, 'supply disruption': 20, shortage: 15, 'export ban': 20, 'production cut': 12, drought: 12 },
+    aiFocus:
+      'Comment on each commodity group: supply/demand drivers in the news, whether the news supports or contradicts the technical signal, and safe-haven flows into gold and silver. Not financial advice.',
   },
   {
     id: 'politics',

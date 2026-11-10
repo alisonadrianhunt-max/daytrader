@@ -22,15 +22,17 @@ function sparkline(closes) {
   return `<svg class="spark ${up ? 'up' : 'down'}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${d}"/></svg>`;
 }
 
-function signalCard(sym, r) {
-  if (!r) return `<li class="card signal skeleton"><b>${esc(sym)}</b><div></div></li>`;
-  if (r.error) return `<li class="card signal"><div class="signal-head"><b>${esc(sym)}</b><span class="badge">N/A</span></div><p class="muted small">${esc(r.error)}</p></li>`;
+/** One Buy/Hold/Sell card. `label` (optional) is a friendly name shown above the ticker. */
+export function signalCard(sym, r, label = '') {
+  const title = label ? `<b class="sym">${esc(label)}</b> <span class="muted small">${esc(sym)}</span>` : `<b class="sym">${esc(sym)}</b>`;
+  if (!r) return `<li class="card signal skeleton"><div>${title}</div><div></div></li>`;
+  if (r.error) return `<li class="card signal"><div class="signal-head"><div>${title}</div><span class="badge">N/A</span></div><p class="muted small">${esc(r.error)}</p></li>`;
   const s = r.signal;
   const i = s.indicators;
   return `
     <li class="card signal">
       <div class="signal-head">
-        <div><b class="sym">${esc(sym)}</b> <span class="muted small">${esc(r.exchange)}</span></div>
+        <div>${title}${label ? '' : ` <span class="muted small">${esc(r.exchange)}</span>`}</div>
         <span class="action action-${s.action.toLowerCase()}" title="Signal score ${s.score} (−100…+100)">${s.action}</span>
       </div>
       <div class="signal-price">
@@ -47,6 +49,8 @@ function signalCard(sym, r) {
       <details><summary class="small">Why ${s.action}? (confidence: ${s.confidence})</summary><ul class="reasons">${s.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>
     </li>`;
 }
+
+const watchSymbols = () => parseWatchlist(loadSettings().watchlist);
 
 export function renderMarkets(root, tab, { refresh }) {
   const draw = () => {
@@ -81,11 +85,11 @@ export function renderMarkets(root, tab, { refresh }) {
     $('.watchlist-form', root).addEventListener('submit', (e) => {
       e.preventDefault();
       saveSettings({ watchlist: parseWatchlist(new FormData(e.target).get('watchlist')).join(', ') });
-      loadSignals(draw);
+      loadSignals(watchSymbols(), draw);
     });
     $('.refresh', root).addEventListener('click', () => {
       refresh(true);
-      loadSignals(draw, true);
+      loadSignals(watchSymbols(), draw, true);
     });
     $('.ai', root).addEventListener('click', () => {
       const lines = symbols
@@ -96,15 +100,20 @@ export function renderMarkets(root, tab, { refresh }) {
       runBriefing(tab, data?.items || [], draw, extra);
     });
   };
-  loadSignals(draw);
+  loadSignals(watchSymbols(), draw);
   return draw;
 }
 
-let inFlight = null;
-async function loadSignals(draw, force = false) {
-  if (inFlight && !force) return inFlight;
-  const symbols = parseWatchlist(loadSettings().watchlist);
-  inFlight = (async () => {
+const inFlight = new Map();
+
+/**
+ * Loads price history + signals for `symbols` one at a time (free-plan rate
+ * limits), calling draw() as each lands. Concurrent calls for the same list share one run.
+ */
+export function loadSignals(symbols, draw, force = false) {
+  const key = symbols.join(',');
+  if (inFlight.has(key) && !force) return inFlight.get(key);
+  const run = (async () => {
     for (const s of symbols) {
       if (!force && store.markets.get(s)?.signal) continue;
       try {
@@ -112,13 +121,14 @@ async function loadSignals(draw, force = false) {
       } catch (err) {
         store.markets.set(s, { error: err.message });
         if (/API key/i.test(err.message)) {
-          for (const rest of symbols) if (!store.markets.get(rest)) store.markets.set(rest, { error: err.message });
+          for (const rest of symbols) if (!store.markets.get(rest)?.signal) store.markets.set(rest, { error: err.message });
           break;
         }
       }
       draw();
     }
     draw();
-  })().finally(() => (inFlight = null));
-  return inFlight;
+  })().finally(() => inFlight.delete(key));
+  inFlight.set(key, run);
+  return run;
 }

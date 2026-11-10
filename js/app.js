@@ -7,11 +7,12 @@ import { store } from './core/store.js';
 import { esc, $ } from './ui/dom.js';
 import { renderFeed } from './ui/feed.js';
 import { renderMarkets } from './ui/markets.js';
+import { renderCommodities } from './ui/commodities.js';
 import { renderOverview } from './ui/overview.js';
 import { renderSettings } from './ui/settings.js';
 
 // View registry: a tab's `view` picks its renderer. Add new view types here.
-const VIEWS = { feed: renderFeed, markets: renderMarkets, overview: renderOverview, settings: renderSettings };
+const VIEWS = { feed: renderFeed, markets: renderMarkets, commodities: renderCommodities, overview: renderOverview, settings: renderSettings };
 const SETTINGS_TAB = { id: 'settings', title: 'Settings', icon: '⚙️', view: 'settings' };
 
 const main = $('#main');
