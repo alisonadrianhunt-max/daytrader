@@ -213,6 +213,7 @@ main:focus, main:focus-visible { outline: none; }
 .indicators dt { font-size: 0.7rem; color: var(--muted); }
 .indicators dd { margin: 0; font-weight: 600; font-size: 0.85rem; }
 .reasons { margin: 6px 0 0; padding-left: 18px; font-size: 0.85rem; }
+.source-note { margin: 0; }
 
 /* Commodities */
 .chip.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }

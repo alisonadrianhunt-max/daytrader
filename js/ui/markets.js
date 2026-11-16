@@ -38,7 +38,7 @@ export function signalCard(sym, r, label = '', unit = '') {
         <span class="action action-${s.action.toLowerCase()}" title="Signal score ${s.score} (−100…+100)">${s.action}</span>
       </div>
       <div class="signal-price">
-        <span class="price">${fmt(i.last)} <small class="muted">${esc(unit || r.currency || '')}</small></span>
+        <span class="price">${fmt(i.last)} <small class="muted">${esc(r.unit || unit || r.currency || '')}</small></span>
         <span class="${(i.change5d ?? 0) >= 0 ? 'pos' : 'neg'}">${pct(i.change5d)} 5d</span>
       </div>
       ${sparkline(r.closes)}
@@ -49,6 +49,7 @@ export function signalCard(sym, r, label = '', unit = '') {
         <div><dt>20d</dt><dd>${pct(i.change20d)}</dd></div>
       </dl>
       <details><summary class="small">Why ${s.action}? (confidence: ${s.confidence})</summary><ul class="reasons">${s.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>
+      ${r.source ? `<p class="muted small source-note">Data: ${esc(r.source)}${r.lastDate ? ` · last close ${esc(r.lastDate)}` : ''}</p>` : ''}
     </li>`;
 }
 
