@@ -26,7 +26,6 @@ export const SOURCES = [
   rss('abc-us', 'ABC News (US)', 'Americas', ['headlines'], 'https://abcnews.go.com/abcnews/internationalheadlines'),
   rss('mercopress', 'MercoPress', 'Americas', ['headlines', 'politics'], 'https://en.mercopress.com/rss/'),
   rss('aljazeera', 'Al Jazeera', 'Middle East', ['headlines'], 'https://www.aljazeera.com/xml/rss/all.xml'),
-  rss('timesofisrael', 'Times of Israel', 'Middle East', ['headlines', 'military'], 'https://www.timesofisrael.com/feed/'),
   rss('arabnews', 'Arab News', 'Middle East', ['headlines'], 'https://www.arabnews.com/rss.xml'),
   rss('africanews', 'Africanews', 'Africa', ['headlines'], 'https://www.africanews.com/feed/rss'),
   rss('allafrica', 'AllAfrica', 'Africa', ['headlines'], 'https://allafrica.com/tools/headlines/rdf/latest/headlines.rdf'),
@@ -47,6 +46,9 @@ export const SOURCES = [
   rss('warontherocks', 'War on the Rocks', 'Americas', ['military'], 'https://warontherocks.com/feed/', { maxAgeDays: 10 }),
   rss('militarytimes', 'Military Times', 'Americas', ['military'], 'https://www.militarytimes.com/arc/outboundfeeds/rss/?outputType=xml'),
   rss('kyivindependent', 'Kyiv Independent', 'Europe', ['military', 'politics'], 'https://kyivindependent.com/news-archive/rss/'),
+  rss('arabnews-conflict', 'Arab News', 'Middle East', ['military'], 'https://www.arabnews.com/rss.xml', { filter: 'conflict' }),
+  rss('hindu-conflict', 'The Hindu', 'Asia-Pacific', ['military'], 'https://www.thehindu.com/news/international/feeder/default.rss', { filter: 'conflict' }),
+  rss('mercopress-conflict', 'MercoPress', 'Americas', ['military'], 'https://en.mercopress.com/rss/', { filter: 'conflict' }),
   rss('un-peace', 'UN News — Peace & Security', 'Global', ['military'], 'https://news.un.org/feed/subscribe/en/news/topic/peace-and-security/feed/rss.xml'),
   rss('crisisgroup', 'International Crisis Group', 'Global', ['military', 'politics'], 'https://www.crisisgroup.org/rss.xml', { maxAgeDays: 14 }),
   rss('aljazeera-conflict', 'Al Jazeera', 'Middle East', ['military'], 'https://www.aljazeera.com/xml/rss/all.xml', { filter: 'conflict' }),
@@ -54,14 +56,11 @@ export const SOURCES = [
   rss('thediplomat-mil', 'The Diplomat', 'Asia-Pacific', ['military', 'politics'], 'https://thediplomat.com/feed/'),
   rss('scmp-mil', 'SCMP', 'Asia-Pacific', ['military'], 'https://www.scmp.com/rss/91/feed', { filter: 'conflict' }),
   rss('africanews-mil', 'Africanews', 'Africa', ['military'], 'https://www.africanews.com/feed/rss', { filter: 'conflict' }),
-  { id: 'gdelt-military', name: 'GDELT (global news)', region: 'Global', tabs: ['military'], type: 'gdelt',
-    query: '(airstrike OR missile OR troops OR invasion OR "drone strike" OR ceasefire OR shelling OR insurgents OR "armed forces")' },
 
   // ── World financial system ─────────────────────────────────────────────────
   rss('fed', 'US Federal Reserve', 'Americas', ['finance'], 'https://www.federalreserve.gov/feeds/press_all.xml', { maxAgeDays: 30 }),
   rss('ecb', 'European Central Bank', 'Europe', ['finance'], 'https://www.ecb.europa.eu/rss/press.html', { maxAgeDays: 30 }),
   rss('boe', 'Bank of England', 'Europe', ['finance'], 'https://www.bankofengland.co.uk/rss/news', { maxAgeDays: 30 }),
-  rss('imf', 'IMF', 'Global', ['finance'], 'https://www.imf.org/en/News/rss?language=eng', { maxAgeDays: 30 }),
   rss('bis', 'Bank for International Settlements', 'Global', ['finance'], 'https://www.bis.org/doclist/all_pressrels.rss', { maxAgeDays: 30 }),
   rss('rba', 'Reserve Bank of Australia', 'Asia-Pacific', ['finance'], 'https://www.rba.gov.au/rss/rss-cb-media-releases.xml', { maxAgeDays: 30 }),
   rss('cnbc-economy', 'CNBC Economy', 'Americas', ['finance'], 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258'),
@@ -69,30 +68,29 @@ export const SOURCES = [
   rss('guardian-business', 'The Guardian — Business', 'Europe', ['finance'], 'https://www.theguardian.com/business/economics/rss'),
   rss('bbc-business', 'BBC Business', 'Europe', ['finance', 'markets'], 'https://feeds.bbci.co.uk/news/business/rss.xml'),
   rss('ft', 'Financial Times', 'Europe', ['finance', 'markets'], 'https://www.ft.com/rss/home/international'),
-  rss('nikkei', 'Nikkei Asia', 'Asia-Pacific', ['finance', 'markets'], 'https://asia.nikkei.com/rss/feed/nar'),
   rss('et-economy', 'The Economic Times (India)', 'Asia-Pacific', ['finance'], 'https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms'),
   rss('scmp-business', 'SCMP Business', 'Asia-Pacific', ['finance'], 'https://www.scmp.com/rss/92/feed'),
   rss('businessday-ng', 'BusinessDay (Nigeria)', 'Africa', ['finance'], 'https://businessday.ng/feed/'),
-  { id: 'gdelt-finance', name: 'GDELT (global news)', region: 'Global', tabs: ['finance'], type: 'gdelt',
-    query: '("central bank" OR "federal reserve" OR ECB OR IMF OR "bond yields" OR "interest rates" OR inflation OR "banking crisis" OR recession)' },
 
   // ── Stock markets ──────────────────────────────────────────────────────────
-  rss('cnbc-markets', 'CNBC Markets', 'Americas', ['markets'], 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20409666'),
-  rss('yahoo-finance', 'Yahoo Finance', 'Americas', ['markets'], 'https://finance.yahoo.com/news/rssindex'),
   rss('investing-stocks', 'Investing.com', 'Global', ['markets'], 'https://www.investing.com/rss/news_25.rss'),
   rss('et-markets', 'Economic Times Markets (India)', 'Asia-Pacific', ['markets'], 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms'),
-  { id: 'gdelt-markets', name: 'GDELT (global news)', region: 'Global', tabs: ['markets'], type: 'gdelt',
-    query: '("stock market" OR NASDAQ OR "Dow Jones" OR "S&P 500" OR "FTSE 100" OR Nikkei OR "Hang Seng" OR "Wall Street")', max: 40 },
+  rss('scmp-markets', 'SCMP Business', 'Asia-Pacific', ['markets'], 'https://www.scmp.com/rss/92/feed', { filter: 'markets' }),
+  rss('guardian-markets', 'The Guardian — Business', 'Europe', ['markets'], 'https://www.theguardian.com/business/economics/rss', { filter: 'markets' }),
+  rss('businessday-markets', 'BusinessDay (Nigeria)', 'Africa', ['markets'], 'https://businessday.ng/feed/', { filter: 'markets' }),
+  rss('arabnews-markets', 'Arab News', 'Middle East', ['markets'], 'https://www.arabnews.com/rss.xml', { filter: 'markets' }),
 
   // ── Commodities ────────────────────────────────────────────────────────────
   rss('oilprice', 'OilPrice.com', 'Global', ['commodities'], 'https://oilprice.com/rss/main'),
   rss('mining', 'MINING.COM', 'Global', ['commodities'], 'https://www.mining.com/feed/'),
-  rss('kitco', 'Kitco News', 'Americas', ['commodities'], 'https://www.kitco.com/rss/KitcoNews.xml'),
+  rss('scmp-commodities', 'SCMP Business', 'Asia-Pacific', ['commodities'], 'https://www.scmp.com/rss/92/feed', { filter: 'commodities' }),
+  rss('et-commodities', 'The Economic Times (India)', 'Asia-Pacific', ['commodities'], 'https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms', { filter: 'commodities' }),
+  rss('businessday-commodities', 'BusinessDay (Nigeria)', 'Africa', ['commodities'], 'https://businessday.ng/feed/', { filter: 'commodities' }),
+  rss('bbc-business-commodities', 'BBC Business', 'Europe', ['commodities'], 'https://feeds.bbci.co.uk/news/business/rss.xml', { filter: 'commodities' }),
+  rss('dailymaverick-commodities', 'Daily Maverick (South Africa)', 'Africa', ['commodities'], 'https://www.dailymaverick.co.za/dmrss/', { filter: 'commodities' }),
+  rss('arabnews-commodities', 'Arab News', 'Middle East', ['commodities'], 'https://www.arabnews.com/rss.xml', { filter: 'commodities' }),
   rss('investing-commodities', 'Investing.com Commodities', 'Global', ['commodities'], 'https://www.investing.com/rss/news_11.rss'),
-  rss('agweb', 'Farm Journal / AgWeb', 'Americas', ['commodities'], 'https://www.agweb.com/rss.xml'),
   rss('cnbc-energy', 'CNBC Energy', 'Americas', ['commodities'], 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=19836768'),
-  { id: 'gdelt-commodities', name: 'GDELT (global news)', region: 'Global', tabs: ['commodities'], type: 'gdelt',
-    query: '(gold OR silver OR copper OR "crude oil" OR OPEC OR "natural gas" OR wheat OR "commodity prices" OR lithium OR cocoa OR coffee)', max: 40 },
 
   // ── Politics ───────────────────────────────────────────────────────────────
   rss('politico', 'Politico', 'Americas', ['politics'], 'https://rss.politico.com/politics-news.xml'),
@@ -106,8 +104,6 @@ export const SOURCES = [
   rss('hindu-national', 'The Hindu — National', 'Asia-Pacific', ['politics'], 'https://www.thehindu.com/news/national/feeder/default.rss'),
   rss('aljazeera-politics', 'Al Jazeera', 'Middle East', ['politics'], 'https://www.aljazeera.com/xml/rss/all.xml', { filter: 'politics' }),
   rss('africanews-politics', 'Africanews', 'Africa', ['politics'], 'https://www.africanews.com/feed/rss', { filter: 'politics' }),
-  { id: 'gdelt-politics', name: 'GDELT (global news)', region: 'Global', tabs: ['politics'], type: 'gdelt',
-    query: '(election OR parliament OR sanctions OR "prime minister" OR president OR coup OR referendum OR diplomacy)' },
 
   // ── Cybersecurity ──────────────────────────────────────────────────────────
   { id: 'cisa-kev', name: 'CISA Known Exploited Vulnerabilities', region: 'Americas', tabs: ['cyber'], type: 'cisa' },
@@ -115,7 +111,6 @@ export const SOURCES = [
   rss('cisa-advisories', 'CISA Advisories', 'Americas', ['cyber'], 'https://www.cisa.gov/cybersecurity-advisories/all.xml', { maxAgeDays: 14 }),
   rss('ncsc-uk', 'UK NCSC', 'Europe', ['cyber'], 'https://www.ncsc.gov.uk/api/1/services/v1/all-rss-feed.xml', { maxAgeDays: 30 }),
   rss('cert-eu', 'CERT-EU', 'Europe', ['cyber'], 'https://cert.europa.eu/publications/security-advisories-rss', { maxAgeDays: 30 }),
-  rss('acsc', 'Australian Cyber Security Centre', 'Asia-Pacific', ['cyber'], 'https://www.cyber.gov.au/rss/alerts', { maxAgeDays: 30 }),
   rss('sans-isc', 'SANS Internet Storm Center', 'Global', ['cyber'], 'https://isc.sans.edu/rssfeed.xml'),
   rss('krebs', 'Krebs on Security', 'Americas', ['cyber'], 'https://krebsonsecurity.com/feed/', { maxAgeDays: 30 }),
   rss('bleeping', 'BleepingComputer', 'Global', ['cyber'], 'https://www.bleepingcomputer.com/feed/'),
@@ -137,8 +132,10 @@ export const SOURCES = [
   rss('ptwc', 'Pacific Tsunami Warning Center', 'Asia-Pacific', ['weather'], 'https://www.tsunami.gov/events/xml/PHEBAtom.xml', { maxAgeDays: 7, quietOk: true }),
   rss('gvp', 'Smithsonian Global Volcanism Program', 'Global', ['weather'], 'https://volcano.si.edu/news/WeeklyVolcanoRSS.xml', { maxAgeDays: 14 }),
   rss('un-climate', 'UN News — Climate', 'Global', ['weather'], 'https://news.un.org/feed/subscribe/en/news/topic/climate-change/feed/rss.xml'),
-  { id: 'gdelt-weather', name: 'GDELT (global news)', region: 'Global', tabs: ['weather'], type: 'gdelt',
-    query: '(hurricane OR typhoon OR cyclone OR flood OR wildfire OR tornado OR heatwave OR drought OR blizzard)', max: 30 },
+  rss('bbc-weather', 'BBC News', 'Europe', ['weather'], 'https://feeds.bbci.co.uk/news/world/rss.xml', { filter: 'hazards' }),
+  rss('scmp-weather', 'SCMP', 'Asia-Pacific', ['weather'], 'https://www.scmp.com/rss/91/feed', { filter: 'hazards' }),
+  rss('africanews-weather', 'Africanews', 'Africa', ['weather'], 'https://www.africanews.com/feed/rss', { filter: 'hazards' }),
+  rss('aljazeera-weather', 'Al Jazeera', 'Middle East', ['weather'], 'https://www.aljazeera.com/xml/rss/all.xml', { filter: 'hazards' }),
 
   // ── Social media commentary ────────────────────────────────────────────────
   { id: 'hn-front', name: 'Hacker News front page', region: 'Global', tabs: ['social'], type: 'hn', frontPage: true },
@@ -148,7 +145,6 @@ export const SOURCES = [
   { id: 'lemmy-world', name: 'Lemmy c/world', region: 'Global', tabs: ['social'], type: 'lemmy', instance: 'lemmy.world', community: 'world' },
   { id: 'lemmy-news', name: 'Lemmy c/news', region: 'Global', tabs: ['social'], type: 'lemmy', instance: 'lemmy.world', community: 'news' },
   rss('reddit-worldnews', 'Reddit r/worldnews', 'Global', ['social'], 'https://www.reddit.com/r/worldnews/hot/.rss'),
-  rss('reddit-geopolitics', 'Reddit r/geopolitics', 'Global', ['social'], 'https://www.reddit.com/r/geopolitics/hot/.rss'),
   rss('bsky-reuters', 'Bluesky @reuters.com', 'Global', ['social'], 'https://bsky.app/profile/reuters.com/rss'),
   rss('bsky-ap', 'Bluesky @apnews.com', 'Americas', ['social'], 'https://bsky.app/profile/apnews.com/rss'),
 
@@ -156,7 +152,6 @@ export const SOURCES = [
   rss('verge-ai', 'The Verge — AI', 'Americas', ['ai'], 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml'),
   rss('techcrunch-ai', 'TechCrunch — AI', 'Americas', ['ai'], 'https://techcrunch.com/category/artificial-intelligence/feed/'),
   rss('mittr-ai', 'MIT Technology Review — AI', 'Americas', ['ai'], 'https://www.technologyreview.com/topic/artificial-intelligence/feed', { maxAgeDays: 7 }),
-  rss('venturebeat-ai', 'VentureBeat — AI', 'Americas', ['ai'], 'https://venturebeat.com/category/ai/feed/'),
   rss('ars-ai', 'Ars Technica — AI', 'Americas', ['ai'], 'https://arstechnica.com/ai/feed/'),
   rss('guardian-ai', 'The Guardian — AI', 'Europe', ['ai'], 'https://www.theguardian.com/technology/artificialintelligenceai/rss'),
   rss('bbc-tech', 'BBC Technology', 'Europe', ['ai'], 'https://feeds.bbci.co.uk/news/technology/rss.xml', { filter: 'ai' }),
@@ -172,6 +167,9 @@ export const SOURCES = [
 export const FILTERS = {
   conflict: /\b(war|wars|military|troops|missile|missiles|strike|strikes|airstrike|drone|drones|army|navy|attack|attacks|ceasefire|shelling|rebels?|insurgen\w*|militants?|killed|bomb\w*|invasion|offensive|clashes|defen[cs]e)\b/i,
   politics: /\b(election|elections|vote|voters|parliament|president|prime minister|minister|government|senate|congress|opposition|coup|sanctions|diplomat\w*|summit|referendum|party|policy|protest\w*)\b/i,
+  commodities: /\b(gold|silver|copper|platinum|palladium|aluminium|aluminum|nickel|zinc|lithium|uranium|iron ore|steel|oil|crude|brent|opec|gas|lng|diesel|petrol|gasoline|coal|wheat|corn|maize|soy\w*|rice|grain|cocoa|coffee|sugar|cotton|cattle|fertili[sz]er|commodit\w*|mining|miners?)\b/i,
+  markets: /\b(stocks?|shares|equit\w*|index|indices|nasdaq|dow|s&p|ftse|nikkei|sensex|nifty|hang seng|bourse|exchange|investors?|ipo|earnings|rally|sell-?off|bonds?|yields?)\b/i,
+  hazards: /\b(earthquake|quake|tsunami|hurricane|typhoon|cyclone|storm|flood\w*|wildfire|bushfire|fire|tornado|heatwave|heat wave|drought|landslide|volcan\w*|eruption|blizzard|monsoon|disaster|evacuat\w*)\b/i,
   ai: /\b(AI|A\.I\.|artificial intelligence|machine learning|chatbot|LLM|OpenAI|ChatGPT|Anthropic|Claude|Gemini|DeepMind|Nvidia|neural|robot\w*)\b/,
 };
 
