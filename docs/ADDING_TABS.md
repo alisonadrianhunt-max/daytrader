@@ -51,10 +51,21 @@ Run `npm test` (it checks the catalogue is well formed), then push. The next pip
 
 ### Prices (commodities, indices, stocks, FX, rates)
 
-Price lists live in `PRICE_GROUPS` in `pipeline/sources.mjs`, keyed by tab (`commodities`, `markets`, `finance`). Each item is `{ symbol, name, unit?, stooq? }`:
+Price lists live in `PRICE_GROUPS` in `pipeline/sources.mjs`, keyed by tab (`commodities`, `markets`, `finance`). Each item is `{ symbol, name, unit?, ...fallbacks }`. Providers are tried in this order until one passes the quality checks:
 
-* `symbol` is a Yahoo Finance symbol, e.g. `GC=F` (gold futures), `^N225` (Nikkei) or `EURUSD=X`.
-* `stooq` is an optional fallback symbol on Stooq, used if Yahoo fails.
+| Field | Provider | Example |
+|---|---|---|
+| `treasury` | US Treasury daily yield curve column | `'10 Yr'` |
+| `fx` | ECB reference rate pair (Frankfurter) | `'EUR/USD'` |
+| `dxy: true` | US Dollar Index computed from ECB rates | |
+| `symbol` | Yahoo Finance (always tried) | `'GC=F'`, `'^N225'` |
+| `stooq` | Stooq | `'gc.f'` |
+| `cboe` | Cboe; plain US tickers are tried automatically | `'_VIX'` |
+| `coinbase` | Coinbase product | `'BTC-USD'` |
+| `fred` | FRED series (St. Louis Fed) | `'DCOILWTICO'` |
+| `proxy`, `proxyName` | a US ETF that tracks it, via Cboe (last resort, labelled on the card) | `'GLD'`, `'SPDR Gold Shares'` |
+
+Only add a symbol if at least one of these works from GitHub's servers. The job summary shows which provider was used for each symbol.
 
 A tab shows a price group by setting `priceGroups: '<key>'`. Symbols that fail validation (too little history, stale prices, implausible jumps) are left out of the dashboard automatically.
 
