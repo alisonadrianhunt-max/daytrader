@@ -234,6 +234,20 @@ main:focus, main:focus-visible { outline: none; }
 .area-score strong { font-size: 1.6rem; }
 .area p { margin: 0; }
 .meter { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+
+/* Source transparency & tables */
+.sources-line { margin: 8px 0; }
+.sources-line summary { cursor: pointer; }
+.source-list { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 2px 16px; }
+.chips + .chips, .chips { margin: 6px 0; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+.indicators-table td:first-child { min-width: 160px; }
+.health details { margin: 6px 0; }
+.health summary { cursor: pointer; padding: 4px 0; }
 .meter span { display: block; height: 100%; border-radius: 999px; }
 
 /* Forms */

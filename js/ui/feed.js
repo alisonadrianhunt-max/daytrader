@@ -5,6 +5,8 @@ import { aggregateRisk, topDrivers, riskLevel } from '../analysis/risk.js';
 import { describeSource } from '../sources/adapters.js';
 import { generateBriefing } from '../ai/claude.js';
 import { store } from '../core/store.js';
+import { isStale } from '../core/snapshot.js';
+import { usePriceGroups, priceStatusLine, indicatorTable } from './pricegroups.js';
 
 export function tabHeader(tab, data) {
   const agg = aggregateRisk(data?.items || []);
@@ -42,7 +44,7 @@ function itemCard(it) {
     <li class="card item">
       <div class="item-top">
         ${riskBadge(it.risk, level)}
-        <span class="muted small">${esc(it.source)} · ${timeAgo(it.publishedAt)}</span>
+        <span class="muted small">${esc(it.source)}${it.region ? ` · ${esc(it.region)}` : ''} · ${timeAgo(it.publishedAt)}${it.via ? ` · via ${esc(it.via)}` : ''}</span>
       </div>
       <a class="item-title" href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener noreferrer">${esc(it.title)}</a>
       ${it.summary ? `<p class="item-summary">${esc(it.summary)}</p>` : ''}
@@ -52,8 +54,23 @@ function itemCard(it) {
 
 export function errorsNotice(tab, data) {
   if (!data?.errors?.length) return '';
-  return `<details class="notice warn"><summary>${data.errors.length} of ${tab.sources.length} sources unavailable</summary>
+  const total = tab.sources?.length || data.errors.length;
+  return `<details class="notice warn"><summary>${data.errors.length} of ${total} sources unavailable</summary>
     <ul>${data.errors.map((e) => `<li><b>${esc(e.source)}</b>: ${esc(e.message)}</li>`).join('')}</ul></details>`;
+}
+
+/** "Data updated 12m ago · 24 of 26 sources reporting from 5 regions" with an expandable source list. */
+export function sourcesLine(data) {
+  if (!data?.sourceList?.length) return '';
+  const list = data.sourceList;
+  const ok = list.filter((s) => s.ok);
+  const regions = new Set(list.map((s) => s.region));
+  const stale = data.generatedAt && isStale(data.generatedAt);
+  return `<details class="sources-line small"><summary class="muted">Data updated ${timeAgo(Date.parse(data.generatedAt))}${stale ? ' — <b class="neg">older than usual</b>' : ''} · <b>${ok.length} of ${list.length}</b> sources reporting from ${regions.size} region${regions.size === 1 ? '' : 's'}</summary>
+    <ul class="source-list">${list
+      .map((s) => `<li><span class="${s.ok ? 'pos' : 'neg'}">${s.ok ? '●' : '○'}</span> ${esc(s.name)} <span class="muted">· ${esc(s.region)} · ${s.ok ? `${s.items} items` : 'not reporting this run'}${Number.isFinite(s.reliability) ? ` · ${s.reliability}% reliable` : ''}</span></li>`)
+      .join('')}</ul>
+    <p class="muted">Sources that fail repeatedly are hidden automatically and return when they recover. Full report: Settings → Data sources.</p></details>`;
 }
 
 export function aiPanel(tabId) {
@@ -77,12 +94,17 @@ export async function runBriefing(tab, items, rerender, extra) {
 }
 
 export function renderFeed(root, tab, { refresh }) {
-  const ui = store.ui(tab.id, { q: '', sort: 'newest', minRisk: 0 });
+  const ui = store.ui(tab.id, { q: '', sort: 'newest', minRisk: 0, region: 'all' });
+  let force = false;
 
   const draw = () => {
     const data = store.tabData.get(tab.id);
+    const prices = tab.priceGroups ? usePriceGroups(tab.priceGroups, draw, { force }) : null;
+    force = false;
     const q = ui.q.trim().toLowerCase();
+    const regions = [...new Set((data?.items || []).map((it) => it.region).filter(Boolean))].sort();
     let items = (data?.items || []).filter((it) => it.risk >= ui.minRisk);
+    if (ui.region !== 'all') items = items.filter((it) => it.region === ui.region);
     if (q) items = items.filter((it) => `${it.title} ${it.summary} ${it.source}`.toLowerCase().includes(q));
     if (ui.sort === 'risk') items = [...items].sort((a, b) => b.risk - a.risk || b.publishedAt - a.publishedAt);
 
@@ -100,11 +122,16 @@ export function renderFeed(root, tab, { refresh }) {
         <button class="btn refresh">↻ Refresh</button>
         <button class="btn primary ai">🧠 AI briefing</button>
       </div>
+      ${regions.length > 1 ? `<div class="chips" role="group" aria-label="Region"><span class="muted small">Region:</span>
+        <button class="chip ${ui.region === 'all' ? 'active' : ''}" data-region="all">All</button>
+        ${regions.map((r) => `<button class="chip ${ui.region === r ? 'active' : ''}" data-region="${esc(r)}">${esc(r)} <b>${data.items.filter((i) => i.region === r).length}</b></button>`).join('')}</div>` : ''}
       ${errorsNotice(tab, data)}
       ${aiPanel(tab.id)}
+      ${prices ? `<h2>Key indicators</h2>${priceStatusLine(prices)}${indicatorTable(prices.groups || [])}<h2>News</h2>` : ''}
+      ${sourcesLine(data)}
       <p class="muted small status">${
-        data ? `${items.length} of ${data.items.length} items${data.pending > 0 ? ' · loading more sources…' : ''} · updated ${timeAgo(data.fetchedAt)}` : 'Loading sources…'
-      } · Sources: ${esc((tab.sources || []).map(describeSource).join(', '))}</p>
+        data ? `${items.length} of ${data.items.length} items${data.pending > 0 ? ' · loading more sources…' : ''}${data.generatedAt ? '' : ` · updated ${timeAgo(data.fetchedAt)}`}` : 'Loading…'
+      }${tab.snapshot ? '' : ` · Sources: ${esc((tab.sources || []).map(describeSource).join(', '))}`}</p>
       <ul class="items">${items.map(itemCard).join('') || (data && !data.pending ? '<li class="card muted">No items match.</li>' : skeleton())}</ul>
     `;
 
@@ -119,9 +146,25 @@ export function renderFeed(root, tab, { refresh }) {
     });
     $('.sort', root).addEventListener('change', (e) => ((ui.sort = e.target.value), draw()));
     $('.min-risk', root).addEventListener('change', (e) => ((ui.minRisk = +e.target.value), draw()));
-    $('.refresh', root).addEventListener('click', () => refresh(true));
-    $('.ai', root).addEventListener('click', () => runBriefing(tab, data?.items || [], draw));
+    $('.refresh', root).addEventListener('click', () => {
+      refresh(true);
+      if (prices) {
+        force = true;
+        draw();
+      }
+    });
+    $('.ai', root).addEventListener('click', () => {
+      const extra = prices?.groups?.length
+        ? `Key indicators:\n${prices.groups
+            .flatMap((g) => g.items.map((i) => ({ i, r: store.markets.get(i.symbol) })))
+            .filter(({ r }) => r?.signal)
+            .map(({ i, r }) => `  ${i.name}: ${r.signal.indicators.last} (5d ${r.signal.indicators.change5d?.toFixed(2)}%, 20d ${r.signal.indicators.change20d?.toFixed(2)}%)`)
+            .join('\n')}`
+        : '';
+      runBriefing(tab, data?.items || [], draw, extra);
+    });
     root.querySelectorAll('.chip[data-search]').forEach((c) => c.addEventListener('click', () => ((ui.q = c.dataset.search), draw())));
+    root.querySelectorAll('.chip[data-region]').forEach((c) => c.addEventListener('click', () => ((ui.region = c.dataset.region), draw())));
   };
   return draw;
 }

@@ -373,7 +373,7 @@ export function validate(raw, src, now = Date.now()) {
 // ── Prices ───────────────────────────────────────────────────────────────────
 async function yahooHistory(symbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d&includePrePost=false`;
-  const data = await http(url, { as: 'json', timeoutMs: 20_000 });
+  const data = await http(url, { as: 'json', timeoutMs: 15_000 });
   const r = data?.chart?.result?.[0];
   if (!r) throw new Error(data?.chart?.error?.description || 'no data');
   const closes = r.indicators?.quote?.[0]?.close || [];
@@ -390,9 +390,19 @@ async function stooqHistory(symbol) {
 }
 const round = (n) => +n.toPrecision(6);
 
+// Circuit breaker: if a provider fails many times in a row (rate limit / block),
+// stop calling it for the rest of the run instead of waiting on timeouts.
+const breaker = { Yahoo: 0, Stooq: 0 };
+const BREAKER_LIMIT = 8;
+
 async function priceFor(item) {
   const errors = [];
   for (const [fn, sym] of [[yahooHistory, item.symbol], ...(item.stooq ? [[stooqHistory, item.stooq]] : [])]) {
+    const provider = fn === yahooHistory ? 'Yahoo' : 'Stooq';
+    if (breaker[provider] >= BREAKER_LIMIT) {
+      errors.push(`${provider}: skipped (provider failing this run)`);
+      continue;
+    }
     try {
       const h = await fn(sym);
       const last = h.points[h.points.length - 1];
@@ -400,18 +410,21 @@ async function priceFor(item) {
       if (Date.now() - Date.parse(last[0]) > 10 * 86400_000) throw new Error(`stale (last ${last[0]})`);
       const jumps = h.points.slice(1).filter((p, i) => Math.abs(p[1] / h.points[i][1] - 1) > 0.5).length;
       if (jumps > 2) throw new Error('price series has implausible jumps');
+      breaker[provider] = 0;
       return {
         name: item.name,
         unit: item.unit || '',
         currency: h.currency,
         exchange: h.exchange,
         source: h.source,
-        dates: h.points.map((p) => p[0]),
-        closes: h.points.map((p) => round(p[1])),
+        // ~220 trading days covers the 200-day average; dates are implied (daily closes).
+        lastDate: last[0],
+        closes: h.points.slice(-220).map((p) => round(p[1])),
         ...(item.invert ? { invert: true } : {}),
       };
     } catch (err) {
-      errors.push(`${fn === yahooHistory ? 'Yahoo' : 'Stooq'}: ${err.message}`);
+      if (/HTTP|timeout|fetch failed/i.test(err.message)) breaker[provider]++;
+      errors.push(`${provider}: ${err.message}`);
     }
   }
   throw new Error(errors.join('; '));
@@ -459,7 +472,7 @@ async function pool(list, size, fn) {
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-async function main() {
+export async function main() {
   const started = Date.now();
   const prevHealth = await loadPrevHealth();
   const health = {};
@@ -546,8 +559,13 @@ async function main() {
     const all = [];
     for (const [tab, groups] of Object.entries(PRICE_GROUPS)) for (const g of groups) for (const item of g.items) all.push({ ...item, tab });
     const unique = [...new Map(all.map((i) => [i.symbol, i])).values()];
+    const priceDeadline = Date.now() + 6 * 60_000; // never let prices hold up a run for long
     await pool(unique, 4, async (item) => {
       const t0 = Date.now();
+      if (t0 > priceDeadline) {
+        priceHealth[item.symbol] = nextHealth(prevHealth[`price:${item.symbol}`], false, { name: item.name, error: 'skipped: run time budget reached', ms: 0 });
+        return;
+      }
       try {
         prices[item.symbol] = await priceFor(item);
         priceHealth[item.symbol] = nextHealth(prevHealth[`price:${item.symbol}`], true, { name: item.name, source: prices[item.symbol].source, ms: Date.now() - t0 });

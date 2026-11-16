@@ -4,10 +4,22 @@ import { esc, safeUrl, timeAgo, $ } from './dom.js';
 import { aggregateRisk, worldRisk, topDrivers } from '../analysis/risk.js';
 import { store } from '../core/store.js';
 import { gauge } from './feed.js';
+import { loadSnapshot, isStale } from '../core/snapshot.js';
+
+let meta = null;
 
 export function renderOverview(root, tab, { tabs, scanAll, isScanning }) {
+  let started = false;
   const draw = () => {
-    const feedTabs = tabs.filter((t) => t.view !== 'overview' && t.sources?.length);
+    if (!started) {
+      started = true;
+      // Every tab is one small same-origin file, so load them all straight away.
+      scanAll();
+      loadSnapshot('meta.json')
+        .then((m) => ((meta = m), draw()))
+        .catch(() => {});
+    }
+    const feedTabs = tabs.filter((t) => t.view !== 'overview' && (t.snapshot || t.sources?.length));
     const scored = feedTabs.map((t) => {
       const d = store.tabData.get(t.id);
       return { t, d, agg: d?.items?.length ? aggregateRisk(d.items) : null };
@@ -30,8 +42,8 @@ export function renderOverview(root, tab, { tabs, scanAll, isScanning }) {
         <div class="tab-risk">${world ? gauge(world.score, world.level) : '<div class="gauge placeholder">Not scanned</div>'}</div>
       </header>
       <div class="toolbar">
-        <button class="btn primary scan" ${isScanning() ? 'disabled' : ''}>${isScanning() ? 'Scanning all areas…' : '🔎 Scan all risk areas'}</button>
-        <span class="muted small">The free news API allows one request every 5 seconds, so a full scan takes about a minute. Results are cached.</span>
+        <button class="btn scan" ${isScanning() ? 'disabled' : ''}>${isScanning() ? 'Loading all areas…' : '↻ Refresh all'}</button>
+        ${meta ? `<span class="muted small">Data updated ${timeAgo(Date.parse(meta.generatedAt))}${isStale(meta.generatedAt) ? ' — <b class="neg">older than usual</b>' : ''} · ${meta.sources.ok} of ${meta.sources.total} sources reporting · ${meta.prices.ok} prices tracked · refreshed every 30 minutes</span>` : ''}
       </div>
       <ul class="overview-grid">
         ${scored
@@ -63,7 +75,7 @@ export function renderOverview(root, tab, { tabs, scanAll, isScanning }) {
           : ''
       }
     `;
-    $('.scan', root).addEventListener('click', () => scanAll());
+    $('.scan', root).addEventListener('click', () => scanAll(true));
   };
   return draw;
 }
