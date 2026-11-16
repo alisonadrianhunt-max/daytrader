@@ -28,10 +28,24 @@ const UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Geck
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// ── Polite pacing for hosts that rate-limit bursts ──────────────────────────
+const MIN_GAP_MS = { 'cdn.cboe.com': 800, 'query2.finance.yahoo.com': 500, 'api.exchange.coinbase.com': 400 };
+const nextSlot = new Map();
+async function pace(url) {
+  const host = new URL(url).host;
+  const gap = MIN_GAP_MS[host];
+  if (!gap) return;
+  const now = Date.now();
+  const at = Math.max(now, nextSlot.get(host) || 0);
+  nextSlot.set(host, at + gap);
+  if (at > now) await sleep(at - now);
+}
+
 // ── HTTP with timeout + one retry ───────────────────────────────────────────
 async function http(url, { as = 'text', timeoutMs = 25_000, headers = {}, retries = 1 } = {}) {
   let lastErr;
   for (let attempt = 0; attempt <= retries; attempt++) {
+    await pace(url);
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -55,7 +69,8 @@ async function http(url, { as = 'text', timeoutMs = 25_000, headers = {}, retrie
     } catch (err) {
       lastErr = err.name === 'AbortError' ? new Error('timeout') : err;
       if (err.retryable === false || (err.message?.startsWith('HTTP 4') && !err.message.includes('429'))) break;
-      if (attempt < retries) await sleep(2000 * (attempt + 1));
+      // Rate limited: back off for longer before trying again.
+      if (attempt < retries) await sleep((err.message === 'HTTP 429' ? 6000 : 2000) * (attempt + 1));
     } finally {
       clearTimeout(timer);
     }
@@ -447,11 +462,19 @@ async function fredHistory(series) {
 }
 
 // Cboe delayed-quotes charts: US stocks, ETFs and Cboe indices, no key.
-async function cboeHistory(symbol) {
-  const data = await http(`https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/${encodeURIComponent(symbol)}.json`, { as: 'json', timeoutMs: 15_000 });
-  const rows = data?.data || [];
-  const points = rows.map((r) => [String(r.date).slice(0, 10), +r.close]).filter((p) => Number.isFinite(p[1]) && p[1] > 0).slice(-260);
-  return { points, currency: 'USD', exchange: 'Cboe', source: 'Cboe' };
+// Memoised: an ETF used both on its own and as a proxy is fetched once.
+const cboeMemo = new Map();
+function cboeHistory(symbol) {
+  if (!cboeMemo.has(symbol)) {
+    const p = http(`https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/${encodeURIComponent(symbol)}.json`, { as: 'json', timeoutMs: 15_000, retries: 2 }).then((data) => {
+      const rows = data?.data || [];
+      const points = rows.map((r) => [String(r.date).slice(0, 10), +r.close]).filter((x) => Number.isFinite(x[1]) && x[1] > 0).slice(-260);
+      return { points, currency: 'USD', exchange: 'Cboe', source: 'Cboe' };
+    });
+    p.catch(() => cboeMemo.delete(symbol));
+    cboeMemo.set(symbol, p);
+  }
+  return cboeMemo.get(symbol);
 }
 
 // Coinbase Exchange public candles (crypto), no key.
