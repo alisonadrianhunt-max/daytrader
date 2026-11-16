@@ -94,6 +94,7 @@ export function parseFeed(xml) {
     return '';
   };
   return blocks.map((b) => {
+    const summary = cleanText(tag(b, ['description', 'summary', 'content:encoded', 'content']), 400);
     let link = '';
     const alt = /<link[^>]*rel=["']alternate["'][^>]*href=["']([^"']+)["']/i.exec(b) || /<link[^>]*href=["']([^"']+)["']/i.exec(b);
     if (alt) link = alt[1];
@@ -102,11 +103,13 @@ export function parseFeed(xml) {
       const guid = cleanText(tag(b, ['guid', 'id']), 2000);
       if (/^https?:/i.test(guid)) link = guid;
     }
+    // Social feeds (e.g. Bluesky) have posts without titles: use the post text.
+    const title = cleanText(tag(b, ['title']), 300) || (summary.length > 160 ? summary.slice(0, 159) + '…' : summary);
     return {
-      title: cleanText(tag(b, ['title']), 300),
+      title,
       url: decodeEntities(link.trim()),
       date: cleanText(tag(b, ['pubDate', 'published', 'updated', 'dc:date', 'a10:updated']), 80),
-      summary: cleanText(tag(b, ['description', 'summary', 'content:encoded', 'content']), 400),
+      summary,
     };
   });
 }
@@ -204,6 +207,29 @@ const ADAPTERS = {
         severity: p.severity === 'Extreme' ? 0.9 : 0.6,
         source: 'US National Weather Service',
         region: 'Americas',
+      };
+    });
+  },
+
+  async gdacs() {
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 10 * 86400_000).toISOString().slice(0, 10);
+    const data = await http(
+      `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?eventlist=EQ;TC;FL;VO;DR;WF&alertlevel=Green;Orange;Red&fromdate=${from}&todate=${to}`,
+      { as: 'json', timeoutMs: 30_000 },
+    );
+    const types = { EQ: 'Earthquake', TC: 'Tropical cyclone', FL: 'Flood', VO: 'Volcano', DR: 'Drought', WF: 'Wildfire' };
+    const sev = { Green: 0.3, Orange: 0.7, Red: 0.95 };
+    return (data.features || []).map((f) => {
+      const p = f.properties || {};
+      return {
+        title: `${p.alertlevel || ''} alert: ${p.name || p.description || types[p.eventtype] || 'event'}`.trim(),
+        url: p.url?.report || `https://www.gdacs.org/report.aspx?eventtype=${p.eventtype}&eventid=${p.eventid}`,
+        date: p.todate || p.fromdate,
+        summary: [types[p.eventtype], p.country, p.severitydata?.severitytext].filter(Boolean).join(' · '),
+        severity: sev[p.alertlevel] ?? 0.3,
+        source: 'GDACS',
+        region: 'Global',
       };
     });
   },
@@ -371,9 +397,29 @@ export function validate(raw, src, now = Date.now()) {
 }
 
 // ── Prices ───────────────────────────────────────────────────────────────────
+// Each symbol tries a chain of free, keyless providers until one passes the
+// quality checks: Yahoo Finance → Stooq → FRED → Cboe → Coinbase → ETF proxy.
+
+// Yahoo needs a session cookie + "crumb" (the same handshake its own site does);
+// without it, requests from data centres are rate-limited (HTTP 429).
+let yahooSession;
+function getYahooSession() {
+  yahooSession ||= (async () => {
+    const r = await fetch('https://fc.yahoo.com/', { headers: { 'User-Agent': UA }, redirect: 'manual' });
+    const cookie = (r.headers.getSetCookie?.() || []).map((c) => c.split(';')[0]).join('; ');
+    if (!cookie) throw new Error('no Yahoo cookie');
+    const crumb = (await http('https://query2.finance.yahoo.com/v1/test/getcrumb', { headers: { Cookie: cookie }, retries: 0 })).trim();
+    if (!crumb || crumb.length > 40 || /[<{\s]/.test(crumb)) throw new Error('no Yahoo crumb');
+    return { cookie, crumb };
+  })().catch((err) => ({ error: err.message }));
+  return yahooSession;
+}
+
 async function yahooHistory(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d&includePrePost=false`;
-  const data = await http(url, { as: 'json', timeoutMs: 15_000 });
+  const s = await getYahooSession();
+  const crumb = s.crumb ? `&crumb=${encodeURIComponent(s.crumb)}` : '';
+  const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d&includePrePost=false${crumb}`;
+  const data = await http(url, { as: 'json', timeoutMs: 15_000, retries: 0, headers: s.cookie ? { Cookie: s.cookie } : {} });
   const r = data?.chart?.result?.[0];
   if (!r) throw new Error(data?.chart?.error?.description || 'no data');
   const closes = r.indicators?.quote?.[0]?.close || [];
@@ -381,26 +427,65 @@ async function yahooHistory(symbol) {
   r.timestamp?.forEach((ts, i) => Number.isFinite(closes[i]) && out.push([new Date(ts * 1000).toISOString().slice(0, 10), closes[i]]));
   return { points: out, currency: r.meta?.currency || '', exchange: r.meta?.fullExchangeName || r.meta?.exchangeName || '', source: 'Yahoo Finance' };
 }
+
 async function stooqHistory(symbol) {
-  const csv = await http(`https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`, { timeoutMs: 20_000 });
-  if (!/^Date,/i.test(csv)) throw new Error(`stooq: ${csv.slice(0, 60).replace(/\s+/g, ' ')}`);
+  const csv = await http(`https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol)}&i=d`, { timeoutMs: 15_000, retries: 0 });
+  if (!/^Date,/i.test(csv)) throw new Error(`unexpected response: ${csv.slice(0, 60).replace(/\s+/g, ' ')}`);
   const rows = csv.trim().split('\n').slice(1).map((l) => l.split(','));
-  const points = rows.filter((r) => Number.isFinite(+r[4])).map((r) => [r[0], +r[4]]).slice(-260);
+  const points = rows.filter((r) => Number.isFinite(+r[4]) && r[4] !== '').map((r) => [r[0], +r[4]]).slice(-260);
   return { points, currency: '', exchange: '', source: 'Stooq' };
 }
+
+// FRED (Federal Reserve Bank of St. Louis): free CSV download, no key.
+async function fredHistory(series) {
+  const start = new Date(Date.now() - 400 * 86400_000).toISOString().slice(0, 10);
+  const csv = await http(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${start}`, { timeoutMs: 20_000 });
+  const lines = csv.trim().split('\n');
+  if (!/date/i.test(lines[0] || '')) throw new Error(`unexpected response: ${csv.slice(0, 60).replace(/\s+/g, ' ')}`);
+  const points = lines.slice(1).map((l) => l.split(',')).filter((r) => r[1] !== '' && r[1] !== '.' && Number.isFinite(+r[1])).map((r) => [r[0], +r[1]]);
+  return { points, currency: '', exchange: '', source: `FRED (${series})` };
+}
+
+// Cboe delayed-quotes charts: US stocks, ETFs and Cboe indices, no key.
+async function cboeHistory(symbol) {
+  const data = await http(`https://cdn.cboe.com/api/global/delayed_quotes/charts/historical/${encodeURIComponent(symbol)}.json`, { as: 'json', timeoutMs: 15_000 });
+  const rows = data?.data || [];
+  const points = rows.map((r) => [String(r.date).slice(0, 10), +r.close]).filter((p) => Number.isFinite(p[1]) && p[1] > 0).slice(-260);
+  return { points, currency: 'USD', exchange: 'Cboe', source: 'Cboe' };
+}
+
+// Coinbase Exchange public candles (crypto), no key.
+async function coinbaseHistory(product) {
+  const data = await http(`https://api.exchange.coinbase.com/products/${encodeURIComponent(product)}/candles?granularity=86400`, { as: 'json', timeoutMs: 15_000 });
+  if (!Array.isArray(data)) throw new Error('unexpected response');
+  const points = data.map((c) => [new Date(c[0] * 1000).toISOString().slice(0, 10), +c[4]]).reverse();
+  return { points, currency: 'USD', exchange: 'Coinbase', source: 'Coinbase' };
+}
+
 const round = (n) => +n.toPrecision(6);
+const isUsTicker = (s) => /^[A-Z]{1,5}(-[A-Z])?$/.test(s);
 
 // Circuit breaker: if a provider fails many times in a row (rate limit / block),
 // stop calling it for the rest of the run instead of waiting on timeouts.
-const breaker = { Yahoo: 0, Stooq: 0 };
-const BREAKER_LIMIT = 8;
+const breaker = {};
+const BREAKER_LIMIT = 6;
+
+/** Ordered list of [providerName, fn, symbol, note] attempts for one price item. */
+export function priceChain(item) {
+  const chain = [['Yahoo', yahooHistory, item.symbol]];
+  if (item.stooq) chain.push(['Stooq', stooqHistory, item.stooq]);
+  if (item.fred) chain.push(['FRED', fredHistory, item.fred]);
+  if (item.cboe || isUsTicker(item.symbol)) chain.push(['Cboe', cboeHistory, item.cboe || item.symbol.replace('-', '.')]);
+  if (item.coinbase) chain.push(['Coinbase', coinbaseHistory, item.coinbase]);
+  if (item.proxy) chain.push(['Cboe', cboeHistory, item.proxy, `${item.proxy} ETF (tracks ${item.name.toLowerCase()})`]);
+  return chain;
+}
 
 async function priceFor(item) {
   const errors = [];
-  for (const [fn, sym] of [[yahooHistory, item.symbol], ...(item.stooq ? [[stooqHistory, item.stooq]] : [])]) {
-    const provider = fn === yahooHistory ? 'Yahoo' : 'Stooq';
-    if (breaker[provider] >= BREAKER_LIMIT) {
-      errors.push(`${provider}: skipped (provider failing this run)`);
+  for (const [provider, fn, sym, proxyNote] of priceChain(item)) {
+    if ((breaker[provider] || 0) >= BREAKER_LIMIT) {
+      errors.push(`${provider}: skipped (failing this run)`);
       continue;
     }
     try {
@@ -413,17 +498,17 @@ async function priceFor(item) {
       breaker[provider] = 0;
       return {
         name: item.name,
-        unit: item.unit || '',
+        unit: proxyNote ? `USD per ${item.proxy} share` : item.unit || '',
         currency: h.currency,
         exchange: h.exchange,
-        source: h.source,
+        source: proxyNote ? `${h.source} · ${proxyNote}` : h.source,
         // ~220 trading days covers the 200-day average; dates are implied (daily closes).
         lastDate: last[0],
         closes: h.points.slice(-220).map((p) => round(p[1])),
         ...(item.invert ? { invert: true } : {}),
       };
     } catch (err) {
-      if (/HTTP|timeout|fetch failed/i.test(err.message)) breaker[provider]++;
+      if (/HTTP|timeout|fetch failed|unexpected response/i.test(err.message)) breaker[provider] = (breaker[provider] || 0) + 1;
       errors.push(`${provider}: ${err.message}`);
     }
   }
@@ -483,13 +568,15 @@ export async function main() {
     try {
       const raw = await ADAPTERS[src.type](src);
       const { items, rejected } = validate(raw, src);
-      // A feed that parses but has nothing recent counts as healthy-but-quiet
-      // only for slow official feeds (maxAgeDays set); news feeds must have items.
-      const ok = items.length > 0 || (src.maxAgeDays && raw.length > 0) || (src.filter && raw.length > 0);
+      // A feed that loads but has nothing recent counts as healthy-but-quiet only
+      // for slow official feeds (maxAgeDays), topic-filtered feeds, or feeds marked
+      // quietOk (e.g. hurricane centres out of season); news feeds must have items.
+      const ok = items.length > 0 || ((src.maxAgeDays || src.filter) && raw.length > 0) || !!src.quietOk;
+      const topReason = Object.entries(rejected).sort((a, b) => b[1] - a[1])[0];
       health[src.id] = nextHealth(prevHealth[src.id], ok, {
         name: src.name, region: src.region, tabs: src.tabs, type: src.type,
         items: items.length, raw: raw.length, rejected, ms: Date.now() - t0,
-        error: ok ? null : raw.length ? 'no valid recent items' : 'empty feed',
+        error: ok ? null : raw.length ? `no valid recent items (${raw.length} rejected, mostly: ${topReason?.[0]})` : 'empty feed',
       });
       return { src, items };
     } catch (err) {
@@ -514,7 +601,7 @@ export async function main() {
         continue;
       }
       res.push(await runSource(s));
-      await sleep(6000);
+      await sleep(10_000);
     }
     return res;
   })();
@@ -566,7 +653,7 @@ export async function main() {
     for (const [tab, groups] of Object.entries(PRICE_GROUPS)) for (const g of groups) for (const item of g.items) all.push({ ...item, tab });
     const unique = [...new Map(all.map((i) => [i.symbol, i])).values()];
     const priceDeadline = Date.now() + 6 * 60_000; // never let prices hold up a run for long
-    await pool(unique, 4, async (item) => {
+    await pool(unique, 2, async (item) => {
       const t0 = Date.now();
       if (t0 > priceDeadline) {
         priceHealth[item.symbol] = nextHealth(prevHealth[`price:${item.symbol}`], false, { name: item.name, error: 'skipped: run time budget reached', ms: 0 });
@@ -578,7 +665,7 @@ export async function main() {
       } catch (err) {
         priceHealth[item.symbol] = nextHealth(prevHealth[`price:${item.symbol}`], false, { name: item.name, error: err.message.slice(0, 200), ms: Date.now() - t0 });
       }
-      await sleep(250);
+      await sleep(400);
     });
     for (const [sym, h] of Object.entries(priceHealth)) health[`price:${sym}`] = { ...h, type: 'price', tabs: ['prices'] };
     // Groups the dashboard should show: only symbols that loaded.

@@ -44,11 +44,11 @@ export const SOURCES = [
   // ── Military conflict & security ───────────────────────────────────────────
   rss('defensenews', 'Defense News', 'Americas', ['military'], 'https://www.defensenews.com/arc/outboundfeeds/rss/?outputType=xml'),
   rss('breakingdefense', 'Breaking Defense', 'Americas', ['military'], 'https://breakingdefense.com/feed/'),
-  rss('warontherocks', 'War on the Rocks', 'Americas', ['military'], 'https://warontherocks.com/feed/'),
+  rss('warontherocks', 'War on the Rocks', 'Americas', ['military'], 'https://warontherocks.com/feed/', { maxAgeDays: 10 }),
   rss('militarytimes', 'Military Times', 'Americas', ['military'], 'https://www.militarytimes.com/arc/outboundfeeds/rss/?outputType=xml'),
   rss('kyivindependent', 'Kyiv Independent', 'Europe', ['military', 'politics'], 'https://kyivindependent.com/news-archive/rss/'),
   rss('un-peace', 'UN News — Peace & Security', 'Global', ['military'], 'https://news.un.org/feed/subscribe/en/news/topic/peace-and-security/feed/rss.xml'),
-  rss('crisisgroup', 'International Crisis Group', 'Global', ['military', 'politics'], 'https://www.crisisgroup.org/rss.xml'),
+  rss('crisisgroup', 'International Crisis Group', 'Global', ['military', 'politics'], 'https://www.crisisgroup.org/rss.xml', { maxAgeDays: 14 }),
   rss('aljazeera-conflict', 'Al Jazeera', 'Middle East', ['military'], 'https://www.aljazeera.com/xml/rss/all.xml', { filter: 'conflict' }),
   rss('bbc-world-mil', 'BBC News', 'Europe', ['military'], 'https://feeds.bbci.co.uk/news/world/rss.xml', { filter: 'conflict' }),
   rss('thediplomat-mil', 'The Diplomat', 'Asia-Pacific', ['military', 'politics'], 'https://thediplomat.com/feed/'),
@@ -129,14 +129,13 @@ export const SOURCES = [
   // ── Weather & natural hazards ──────────────────────────────────────────────
   { id: 'usgs', name: 'USGS Earthquakes (M4.5+)', region: 'Global', tabs: ['weather'], type: 'usgs' },
   { id: 'emsc', name: 'EMSC Earthquakes (M4.5+)', region: 'Europe', tabs: ['weather'], type: 'emsc' },
-  rss('gdacs', 'GDACS (UN/EU disaster alerts)', 'Global', ['weather'], 'https://www.gdacs.org/xml/rss.xml', { severityFromGdacs: true }),
+  { id: 'gdacs', name: 'GDACS (UN/EU disaster alerts)', region: 'Global', tabs: ['weather'], type: 'gdacs', maxAgeDays: 10 },
   { id: 'nws', name: 'US National Weather Service', region: 'Americas', tabs: ['weather'], type: 'nws' },
-  { id: 'eonet', name: 'NASA EONET', region: 'Global', tabs: ['weather'], type: 'eonet' },
-  rss('nhc-atlantic', 'US National Hurricane Center (Atlantic)', 'Americas', ['weather'], 'https://www.nhc.noaa.gov/index-at.xml'),
-  rss('nhc-pacific', 'US National Hurricane Center (E. Pacific)', 'Americas', ['weather'], 'https://www.nhc.noaa.gov/index-ep.xml'),
-  rss('ptwc', 'Pacific Tsunami Warning Center', 'Asia-Pacific', ['weather'], 'https://www.tsunami.gov/events/xml/PHEBAtom.xml', { maxAgeDays: 7 }),
+  { id: 'eonet', name: 'NASA EONET', region: 'Global', tabs: ['weather'], type: 'eonet', maxAgeDays: 30 },
+  rss('nhc-atlantic', 'US National Hurricane Center (Atlantic)', 'Americas', ['weather'], 'https://www.nhc.noaa.gov/index-at.xml', { quietOk: true, maxAgeDays: 7 }),
+  rss('nhc-pacific', 'US National Hurricane Center (E. Pacific)', 'Americas', ['weather'], 'https://www.nhc.noaa.gov/index-ep.xml', { quietOk: true, maxAgeDays: 7 }),
+  rss('ptwc', 'Pacific Tsunami Warning Center', 'Asia-Pacific', ['weather'], 'https://www.tsunami.gov/events/xml/PHEBAtom.xml', { maxAgeDays: 7, quietOk: true }),
   rss('gvp', 'Smithsonian Global Volcanism Program', 'Global', ['weather'], 'https://volcano.si.edu/news/WeeklyVolcanoRSS.xml', { maxAgeDays: 14 }),
-  rss('reliefweb-disasters', 'ReliefWeb Disasters', 'Global', ['weather'], 'https://reliefweb.int/disasters/rss.xml', { maxAgeDays: 30 }),
   rss('un-climate', 'UN News — Climate', 'Global', ['weather'], 'https://news.un.org/feed/subscribe/en/news/topic/climate-change/feed/rss.xml'),
   { id: 'gdelt-weather', name: 'GDELT (global news)', region: 'Global', tabs: ['weather'], type: 'gdelt',
     query: '(hurricane OR typhoon OR cyclone OR flood OR wildfire OR tornado OR heatwave OR drought OR blizzard)', max: 30 },
@@ -156,16 +155,16 @@ export const SOURCES = [
   // ── AI news ────────────────────────────────────────────────────────────────
   rss('verge-ai', 'The Verge — AI', 'Americas', ['ai'], 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml'),
   rss('techcrunch-ai', 'TechCrunch — AI', 'Americas', ['ai'], 'https://techcrunch.com/category/artificial-intelligence/feed/'),
-  rss('mittr-ai', 'MIT Technology Review — AI', 'Americas', ['ai'], 'https://www.technologyreview.com/topic/artificial-intelligence/feed'),
+  rss('mittr-ai', 'MIT Technology Review — AI', 'Americas', ['ai'], 'https://www.technologyreview.com/topic/artificial-intelligence/feed', { maxAgeDays: 7 }),
   rss('venturebeat-ai', 'VentureBeat — AI', 'Americas', ['ai'], 'https://venturebeat.com/category/ai/feed/'),
   rss('ars-ai', 'Ars Technica — AI', 'Americas', ['ai'], 'https://arstechnica.com/ai/feed/'),
-  rss('guardian-ai', 'The Guardian — AI', 'Europe', ['ai'], 'https://www.theguardian.com/technology/artificialintelligence/rss'),
+  rss('guardian-ai', 'The Guardian — AI', 'Europe', ['ai'], 'https://www.theguardian.com/technology/artificialintelligenceai/rss'),
   rss('bbc-tech', 'BBC Technology', 'Europe', ['ai'], 'https://feeds.bbci.co.uk/news/technology/rss.xml', { filter: 'ai' }),
   rss('scmp-tech', 'SCMP Tech', 'Asia-Pacific', ['ai'], 'https://www.scmp.com/rss/36/feed', { filter: 'ai' }),
   rss('openai-news', 'OpenAI News', 'Americas', ['ai'], 'https://openai.com/news/rss.xml', { maxAgeDays: 30 }),
   rss('deepmind', 'Google DeepMind Blog', 'Europe', ['ai'], 'https://deepmind.google/blog/rss.xml', { maxAgeDays: 30 }),
   rss('huggingface', 'Hugging Face Blog', 'Global', ['ai'], 'https://huggingface.co/blog/feed.xml', { maxAgeDays: 30 }),
-  rss('arxiv-ai', 'arXiv cs.AI (new research)', 'Global', ['ai'], 'https://rss.arxiv.org/rss/cs.AI', { maxItems: 15 }),
+  rss('arxiv-ai', 'arXiv cs.AI (new research)', 'Global', ['ai'], 'https://rss.arxiv.org/rss/cs.AI', { maxItems: 15, quietOk: true }), // empty at weekends
   { id: 'hn-ai', name: 'Hacker News', region: 'Global', tabs: ['ai'], type: 'hn', query: 'AI LLM GPT Claude Gemini OpenAI Anthropic', days: 2 },
 ];
 
@@ -176,41 +175,44 @@ export const FILTERS = {
   ai: /\b(AI|A\.I\.|artificial intelligence|machine learning|chatbot|LLM|OpenAI|ChatGPT|Anthropic|Claude|Gemini|DeepMind|Nvidia|neural|robot\w*)\b/,
 };
 
-// ── Prices (Yahoo Finance chart API, with Stooq as a fallback) ───────────────
-// `yahoo` is the Yahoo symbol, `stooq` the Stooq symbol used if Yahoo fails.
+// ── Prices: free, keyless providers tried in order until one passes checks ──
+//   symbol   Yahoo Finance symbol (first choice)
+//   stooq    Stooq symbol            fred   FRED series id (St. Louis Fed)
+//   cboe     Cboe symbol (US tickers are tried on Cboe automatically)
+//   coinbase Coinbase product id     proxy  US ETF that tracks the commodity (last resort, labelled)
 
 export const PRICE_GROUPS = {
   commodities: [
     { id: 'precious', title: 'Precious metals', icon: '🥇', items: [
-      { symbol: 'GC=F', name: 'Gold', unit: 'USD/oz', stooq: 'gc.f' },
-      { symbol: 'SI=F', name: 'Silver', unit: 'USD/oz', stooq: 'si.f' },
-      { symbol: 'PL=F', name: 'Platinum', unit: 'USD/oz', stooq: 'pl.f' },
-      { symbol: 'PA=F', name: 'Palladium', unit: 'USD/oz', stooq: 'pa.f' },
+      { symbol: 'GC=F', name: 'Gold', unit: 'USD/oz', stooq: 'gc.f', proxy: 'GLD' },
+      { symbol: 'SI=F', name: 'Silver', unit: 'USD/oz', stooq: 'si.f', proxy: 'SLV' },
+      { symbol: 'PL=F', name: 'Platinum', unit: 'USD/oz', stooq: 'pl.f', proxy: 'PPLT' },
+      { symbol: 'PA=F', name: 'Palladium', unit: 'USD/oz', stooq: 'pa.f', proxy: 'PALL' },
     ] },
     { id: 'industrial', title: 'Industrial & battery metals', icon: '🔩', items: [
-      { symbol: 'HG=F', name: 'Copper', unit: 'USD/lb', stooq: 'hg.f' },
+      { symbol: 'HG=F', name: 'Copper', unit: 'USD/lb', stooq: 'hg.f', proxy: 'CPER' },
       { symbol: 'ALI=F', name: 'Aluminium', unit: 'USD/t' },
       { symbol: 'DBB', name: 'Base metals basket (ETF)', stooq: 'dbb.us' },
       { symbol: 'LIT', name: 'Lithium & battery metals (ETF)', stooq: 'lit.us' },
       { symbol: 'URA', name: 'Uranium (ETF)', stooq: 'ura.us' },
     ] },
     { id: 'energy', title: 'Energy', icon: '🛢️', items: [
-      { symbol: 'CL=F', name: 'Crude oil (WTI)', unit: 'USD/bbl', stooq: 'cl.f' },
-      { symbol: 'BZ=F', name: 'Crude oil (Brent)', unit: 'USD/bbl', stooq: 'cb.f' },
-      { symbol: 'NG=F', name: 'Natural gas (Henry Hub)', unit: 'USD/MMBtu', stooq: 'ng.f' },
-      { symbol: 'RB=F', name: 'Gasoline (RBOB)', unit: 'USD/gal', stooq: 'rb.f' },
-      { symbol: 'HO=F', name: 'Heating oil / diesel', unit: 'USD/gal', stooq: 'ho.f' },
+      { symbol: 'CL=F', name: 'Crude oil (WTI)', unit: 'USD/bbl', stooq: 'cl.f', fred: 'DCOILWTICO' },
+      { symbol: 'BZ=F', name: 'Crude oil (Brent)', unit: 'USD/bbl', stooq: 'cb.f', fred: 'DCOILBRENTEU' },
+      { symbol: 'NG=F', name: 'Natural gas (Henry Hub)', unit: 'USD/MMBtu', stooq: 'ng.f', fred: 'DHHNGSP' },
+      { symbol: 'RB=F', name: 'Gasoline (RBOB)', unit: 'USD/gal', stooq: 'rb.f', fred: 'DGASNYH' },
+      { symbol: 'HO=F', name: 'Heating oil / diesel', unit: 'USD/gal', stooq: 'ho.f', fred: 'DHOILNYH' },
     ] },
     { id: 'grains', title: 'Grains & oilseeds', icon: '🌾', items: [
-      { symbol: 'ZC=F', name: 'Corn', unit: 'USc/bu', stooq: 'zc.f' },
-      { symbol: 'ZW=F', name: 'Wheat', unit: 'USc/bu', stooq: 'zw.f' },
-      { symbol: 'ZS=F', name: 'Soybeans', unit: 'USc/bu', stooq: 'zs.f' },
+      { symbol: 'ZC=F', name: 'Corn', unit: 'USc/bu', stooq: 'zc.f', proxy: 'CORN' },
+      { symbol: 'ZW=F', name: 'Wheat', unit: 'USc/bu', stooq: 'zw.f', proxy: 'WEAT' },
+      { symbol: 'ZS=F', name: 'Soybeans', unit: 'USc/bu', stooq: 'zs.f', proxy: 'SOYB' },
       { symbol: 'ZR=F', name: 'Rough rice', unit: 'USD/cwt' },
     ] },
     { id: 'softs', title: 'Softs', icon: '☕', items: [
       { symbol: 'KC=F', name: 'Coffee', unit: 'USc/lb', stooq: 'kc.f' },
       { symbol: 'CC=F', name: 'Cocoa', unit: 'USD/t', stooq: 'cc.f' },
-      { symbol: 'SB=F', name: 'Sugar', unit: 'USc/lb', stooq: 'sb.f' },
+      { symbol: 'SB=F', name: 'Sugar', unit: 'USc/lb', stooq: 'sb.f', proxy: 'CANE' },
       { symbol: 'CT=F', name: 'Cotton', unit: 'USc/lb', stooq: 'ct.f' },
       { symbol: 'OJ=F', name: 'Orange juice', unit: 'USc/lb' },
     ] },
@@ -222,10 +224,10 @@ export const PRICE_GROUPS = {
   ],
   markets: [
     { id: 'americas', title: 'Americas indices', icon: '🌎', items: [
-      { symbol: '^GSPC', name: 'S&P 500 (US)', stooq: '^spx' },
-      { symbol: '^IXIC', name: 'NASDAQ Composite (US)', stooq: '^ndq' },
-      { symbol: '^DJI', name: 'Dow Jones (US)', stooq: '^dji' },
-      { symbol: '^RUT', name: 'Russell 2000 (US)' },
+      { symbol: '^GSPC', name: 'S&P 500 (US)', stooq: '^spx', fred: 'SP500' },
+      { symbol: '^IXIC', name: 'NASDAQ Composite (US)', stooq: '^ndq', fred: 'NASDAQCOM' },
+      { symbol: '^DJI', name: 'Dow Jones (US)', stooq: '^dji', fred: 'DJIA' },
+      { symbol: '^RUT', name: 'Russell 2000 (US)', cboe: '_RUT' },
       { symbol: '^GSPTSE', name: 'S&P/TSX (Canada)' },
       { symbol: '^BVSP', name: 'Bovespa (Brazil)' },
       { symbol: '^MXX', name: 'IPC (Mexico)' },
@@ -240,7 +242,7 @@ export const PRICE_GROUPS = {
       { symbol: '^J203.JO', name: 'JSE All Share (South Africa)' },
     ] },
     { id: 'apac', title: 'Asia-Pacific indices', icon: '🌏', items: [
-      { symbol: '^N225', name: 'Nikkei 225 (Japan)', stooq: '^nkx' },
+      { symbol: '^N225', name: 'Nikkei 225 (Japan)', stooq: '^nkx', fred: 'NIKKEI225' },
       { symbol: '^HSI', name: 'Hang Seng (Hong Kong)', stooq: '^hsi' },
       { symbol: '000001.SS', name: 'Shanghai Composite (China)' },
       { symbol: '^KS11', name: 'KOSPI (South Korea)' },
@@ -262,24 +264,24 @@ export const PRICE_GROUPS = {
   ],
   finance: [
     { id: 'stress', title: 'Market stress & rates', icon: '🌡️', items: [
-      { symbol: '^VIX', name: 'VIX volatility index', stooq: '^vix', invert: true },
-      { symbol: '^TNX', name: 'US 10-year Treasury yield (%)' },
-      { symbol: '^IRX', name: 'US 13-week T-bill yield (%)' },
+      { symbol: '^VIX', name: 'VIX volatility index', stooq: '^vix', invert: true, fred: 'VIXCLS', cboe: '_VIX' },
+      { symbol: '^TNX', name: 'US 10-year Treasury yield (%)', fred: 'DGS10' },
+      { symbol: '^IRX', name: 'US 13-week T-bill yield (%)', fred: 'DTB3' },
       { symbol: 'DX-Y.NYB', name: 'US Dollar index (DXY)' },
     ] },
     { id: 'fx', title: 'Currencies', icon: '💱', items: [
-      { symbol: 'EURUSD=X', name: 'EUR/USD', stooq: 'eurusd' },
-      { symbol: 'JPY=X', name: 'USD/JPY', stooq: 'usdjpy' },
-      { symbol: 'GBPUSD=X', name: 'GBP/USD', stooq: 'gbpusd' },
-      { symbol: 'CNY=X', name: 'USD/CNY', stooq: 'usdcny' },
-      { symbol: 'INR=X', name: 'USD/INR' },
-      { symbol: 'BRL=X', name: 'USD/BRL' },
-      { symbol: 'ZAR=X', name: 'USD/ZAR' },
+      { symbol: 'EURUSD=X', name: 'EUR/USD', stooq: 'eurusd', fred: 'DEXUSEU' },
+      { symbol: 'JPY=X', name: 'USD/JPY', stooq: 'usdjpy', fred: 'DEXJPUS' },
+      { symbol: 'GBPUSD=X', name: 'GBP/USD', stooq: 'gbpusd', fred: 'DEXUSUK' },
+      { symbol: 'CNY=X', name: 'USD/CNY', stooq: 'usdcny', fred: 'DEXCHUS' },
+      { symbol: 'INR=X', name: 'USD/INR', fred: 'DEXINUS' },
+      { symbol: 'BRL=X', name: 'USD/BRL', fred: 'DEXBZUS' },
+      { symbol: 'ZAR=X', name: 'USD/ZAR', fred: 'DEXSFUS' },
       { symbol: 'TRY=X', name: 'USD/TRY' },
     ] },
     { id: 'crypto', title: 'Crypto', icon: '₿', items: [
-      { symbol: 'BTC-USD', name: 'Bitcoin', stooq: 'btcusd' },
-      { symbol: 'ETH-USD', name: 'Ether', stooq: 'ethusd' },
+      { symbol: 'BTC-USD', name: 'Bitcoin', stooq: 'btcusd', coinbase: 'BTC-USD' },
+      { symbol: 'ETH-USD', name: 'Ether', stooq: 'ethusd', coinbase: 'ETH-USD' },
     ] },
   ],
 };
