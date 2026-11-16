@@ -140,7 +140,7 @@ const ADAPTERS = {
   async gdelt(src) {
     const q = `${src.query} sourcelang:english`;
     const url = `https://api.gdeltproject.org/api/v2/doc/doc?format=json&mode=artlist&sort=datedesc&maxrecords=${src.max || 50}&timespan=24h&query=${encodeURIComponent(q)}`;
-    const data = await http(url, { as: 'json', timeoutMs: 40_000 });
+    const data = await http(url, { as: 'json', timeoutMs: 25_000 });
     return (data.articles || []).map((a) => {
       const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(a.seendate || '');
       return {
@@ -504,9 +504,15 @@ export async function main() {
   // GDELT allows 1 request / 5 s → run those sequentially alongside everything else.
   const gdelt = sources.filter((s) => s.type === 'gdelt');
   const others = sources.filter((s) => s.type !== 'gdelt');
+  const gdeltDeadline = Date.now() + 5 * 60_000;
   const gdeltRun = (async () => {
     const res = [];
     for (const s of gdelt) {
+      if (Date.now() > gdeltDeadline) {
+        health[s.id] = nextHealth(prevHealth[s.id], false, { name: s.name, region: s.region, tabs: s.tabs, type: s.type, items: 0, raw: 0, ms: 0, error: 'skipped: run time budget reached' });
+        res.push({ src: s, items: [] });
+        continue;
+      }
       res.push(await runSource(s));
       await sleep(6000);
     }

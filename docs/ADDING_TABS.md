@@ -1,61 +1,70 @@
-# Adding tabs to Day Trader
+# Adding tabs and sources to Day Trader
 
-There are three ways to extend Day Trader, from easiest to most powerful.
+Day Trader's built-in tabs are filled by a **data pipeline** (`pipeline/build.mjs`) that runs on GitHub Actions every 30 minutes. It fetches every source on GitHub's servers, so no API keys are needed and browser restrictions (CORS) don't apply. It cleans and checks the data, tracks how reliable each source is, and publishes `data/*.json` alongside the app. The browser then only reads those files.
+
+There are three ways to extend it.
 
 ## 1. Custom tab from the app (no code)
 
-Open **⚙️ Settings → Custom tabs** and fill in:
+Open **⚙️ Settings → Custom tabs** and fill in a tab name, an icon, **news keywords** (searched live across global news through GDELT), and optionally a **Hacker News search** and **RSS feed URLs**. The tab appears straight away, is scored for risk, shows on the Overview and supports AI briefings. Custom tabs are stored in the browser they were created in, and fetch their data live from that browser.
 
-* **Tab name** and **icon** (any emoji)
-* **News keywords** (comma separated). These search global news through GDELT. Multi-word phrases are fine, e.g. `oil, OPEC, crude prices`.
-* Optional: a **Hacker News search**, a **subreddit**, and **RSS feed URLs**.
+## 2. Add a source to an existing tab
 
-The tab appears in the tab bar straight away. It is scored for risk, it shows up on the Overview, and it supports AI briefings. Custom tabs are stored in the browser they were created in.
-
-## 2. Built-in tab (one object of code)
-
-Add an entry to `BUILTIN_TABS` in `js/tabs/registry.js`:
+Add one line to `SOURCES` in `pipeline/sources.mjs`:
 
 ```js
-{
-  id: 'energy',                       // unique, used in the URL: #/energy
-  title: 'Energy & Commodities',
-  icon: '🛢️',
-  description: 'Oil, gas, power grids and critical minerals.',
-  sources: [
-    { type: 'gdelt', query: '(oil OR OPEC OR "natural gas" OR "power grid" OR lithium)' },
-    { type: 'reddit', subreddit: 'energy' },
-    { type: 'hn', query: 'oil OR energy OR grid', days: 3 },
-    { type: 'rss', url: 'https://example.com/feed.xml', name: 'Example Energy' },
-  ],
-  lexicon: { blackout: 20, embargo: 20, 'supply cut': 15 },  // optional extra risk keywords
-  aiFocus: 'Focus on supply disruption and price impact.',   // optional AI briefing focus
-},
+rss('reuters-africa', 'Example Africa Desk', 'Africa', ['headlines', 'politics'], 'https://example.com/africa/rss.xml'),
 ```
 
-Also add the tab to the "all required risk areas" test in `tests/registry.test.mjs` if it is a core tab. That's all.
+The arguments are: a unique id, the display name, a region (`Global`, `Americas`, `Europe`, `Middle East`, `Africa` or `Asia-Pacific`), the tabs it feeds, and the feed URL. Optional extras:
 
-### Available source types
+* `{ filter: 'conflict' | 'politics' | 'ai' }` keeps only items on that topic (useful for general feeds).
+* `{ maxAgeDays: 30 }` keeps older items, for slow official feeds such as central-bank or cyber-agency alerts. The default is 3 days.
+* `{ maxItems: 15 }` caps how many items the source contributes.
 
-| `type` | Options | Notes |
-|---|---|---|
-| `gdelt` | `query`, `max` (default 50), `timespan` (default `24h`) | Global news. Supports `OR`, `"phrases"`, `domain:example.com` |
-| `hn` | `query` (words joined by `OR`), `days`, or `frontPage: true` | Hacker News via Algolia |
-| `reddit` | `subreddit`, optional `filter` (RegExp on titles) | Hot posts |
-| `mastodon` | `tag`, `instance` (default `mastodon.social`) | Public hashtag timeline |
-| `usgs` | `feed` (default `4.5_day`) | Earthquakes |
-| `nws` | – | US severe and extreme weather alerts |
-| `eonet` | `days` | NASA natural events |
-| `cisa` | `max` | Known exploited vulnerabilities |
-| `nvd` | `days`, `max` | Critical CVEs |
-| `rss` | `url`, `name` | Needs the feed to allow CORS, or a CORS proxy set in Settings |
+Other source types (`gdelt`, `usgs`, `emsc`, `nws`, `eonet`, `cisa`, `nvd`, `hn`, `mastodon`, `lemmy`) are written as objects; copy an existing entry.
 
-### Changing the commodities list
+Run `npm test` (it checks the catalogue is well formed), then push. The next pipeline run reports the new source's status in the Actions job summary and in the app under **Settings → Data sources**.
 
-The Commodities tab reads its groups from the `groups` array on the `commodities` entry in `js/tabs/registry.js`. Each group is `{ id, title, icon, items: [{ symbol, name }] }`. To add a commodity, add `{ symbol: 'XYZ', name: 'Something' }` to a group, or add a new group. The symbol must be a ticker Twelve Data supports on your plan; US-listed ETFs that track the commodity work on the free plan.
+**Reliability rules (automatic):**
+* Every item must have a title, a valid http(s) link and a date, and must be recent. Duplicates are removed, both within a source and across sources.
+* A source that fails **6 runs in a row** (about 3 hours) is hidden from the dashboard, but the pipeline keeps trying it and shows it again as soon as it recovers.
+* Reliability is the percentage of the last 48 runs (about one day) that succeeded.
 
-## 3. New source type or new view
+## 3. Add a built-in tab
 
-* **New data source:** write an async function in `js/sources/adapters.js` that returns normalized items `{ id, title, url, source, publishedAt, summary, severity (0..1), tags }`, add it to `ADAPTERS`, and add a label in `describeSource`. The API must allow browser (CORS) requests. If it has strict rate limits, add its host to `HOST_MIN_INTERVAL_MS` in `js/core/fetcher.js`.
-* **New view type** (for example a map or a chart): create `js/ui/myview.js` exporting `renderMyView(root, tab, ctx)`. It returns a `draw()` function and reads data from `store.tabData.get(tab.id)`. Register it in `VIEWS` in `js/app.js` and set `view: 'myview'` on the tab.
-* Add any new files to the `SHELL` list in `sw.js` so they work offline, and bump `VERSION`.
+1. Add an entry to `BUILTIN_TABS` in `js/tabs/registry.js`:
+
+   ```js
+   {
+     id: 'energy',                 // used in the URL (#/energy) and as the data file name
+     title: 'Energy',
+     icon: '⚡',
+     snapshot: true,               // data comes from the pipeline
+     description: 'Power grids, oil and gas supply, and energy policy worldwide.',
+     lexicon: { blackout: 20, embargo: 20 },        // optional extra risk keywords
+     aiFocus: 'Focus on supply disruption and price impact.',  // optional
+   },
+   ```
+
+2. Add sources for it in `pipeline/sources.mjs` with `tabs: ['energy']`. The tests require at least 3 sources from at least 2 regions.
+
+### Prices (commodities, indices, stocks, FX, rates)
+
+Price lists live in `PRICE_GROUPS` in `pipeline/sources.mjs`, keyed by tab (`commodities`, `markets`, `finance`). Each item is `{ symbol, name, unit?, stooq? }`:
+
+* `symbol` is a Yahoo Finance symbol, e.g. `GC=F` (gold futures), `^N225` (Nikkei) or `EURUSD=X`.
+* `stooq` is an optional fallback symbol on Stooq, used if Yahoo fails.
+
+A tab shows a price group by setting `priceGroups: '<key>'`. Symbols that fail validation (too little history, stale prices, implausible jumps) are left out of the dashboard automatically.
+
+### A new kind of view
+
+Create `js/ui/myview.js` exporting `renderMyView(root, tab, ctx)`. It returns a `draw()` function and reads its data from `store.tabData.get(tab.id)`. Register it in `VIEWS` in `js/app.js`, and set `view: 'myview'` on the tab. Add any new files to `SHELL` in `sw.js` and bump `VERSION`.
+
+## Running the pipeline yourself
+
+```bash
+npm run data      # writes ./data (needs internet access)
+npm start         # serves the app with that data at http://localhost:8080
+```
