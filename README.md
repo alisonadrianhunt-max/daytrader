@@ -2,88 +2,101 @@
 
 Day Trader is a browser-based dashboard that collects **data, analysis and recommendations on every major area of world risk**. It runs in any modern browser on **iPhone, Android, Windows 11 and Mac**, and can be installed to the home screen or desktop like an app. It is a Progressive Web App (PWA).
 
+**No API keys are needed.** All data is collected every 30 minutes by a pipeline running on GitHub Actions and published with the site.
+
 ## Tabs
 
-| Tab | What it covers | Live data sources |
+| Tab | What it covers | Main sources (all regions tagged) |
 |---|---|---|
-| 🌐 Overview | World Risk Index plus a risk score for every area, and the highest-risk items right now | All of the below |
-| ⚔️ Military Conflict | Strikes, troop movements, escalation, ceasefires | GDELT global news, Reddit |
-| 🏦 World Financial System | Central banks, debt, banking stress, inflation, FX | GDELT, Hacker News |
-| 📈 Stocks & NASDAQ | **Buy / Hold / Sell** signals for your watchlist, plus market news | Twelve Data (free key), GDELT |
-| 🪙 Commodities | Gold, silver, platinum, palladium; copper, base metals, lithium, uranium; oil, natural gas, gasoline; corn, wheat, soybeans; sugar, agriculture basket, timber. Grouped by type, each with a **Buy / Hold / Sell** signal and a group verdict | Twelve Data (free key, ETF proxies), GDELT |
-| 🏛️ Political News | Elections, governments, sanctions, unrest | GDELT, Reddit |
-| 🛡️ Cybersecurity Threats | Actively exploited CVEs, critical CVEs, breaches, ransomware | CISA KEV, NIST NVD, GDELT, Hacker News |
-| 🌪️ Weather Events | Severe weather alerts, earthquakes, wildfires, storms, volcanoes | NOAA/NWS, USGS, NASA EONET, GDELT |
-| 💬 Social Media Commentary | What people are discussing now | Reddit, Mastodon, Hacker News |
-| 📰 Mainstream Headlines | Reuters, AP, BBC, Guardian, NYT, CNN, Al Jazeera, NPR, FT | GDELT (+ optional RSS) |
-| 🤖 AI Daily News | AI research, products, regulation | GDELT, Hacker News, Reddit |
-| ⭐ Your own tabs | Any topic you choose (Settings → Custom tabs) | GDELT + optional HN / Reddit / RSS |
+| 🌐 Overview | World Risk Index, a risk score for every area, the highest-risk items right now, and data freshness | Everything below |
+| ⚔️ Military Conflict | Strikes, troop movements, escalation, ceasefires | Defense News, Breaking Defense, Military Times, War on the Rocks, Kyiv Independent, UN Peace & Security, International Crisis Group, The Diplomat, plus conflict coverage from BBC, Al Jazeera, Arab News, SCMP, The Hindu, Africanews, MercoPress |
+| 🏦 World Financial System | Central banks, rates, currencies, market stress, crypto, financial news | Fed, ECB, Bank of England, Reserve Bank of Australia, BIS, CNBC, MarketWatch, FT, BBC, Guardian, SCMP, Economic Times, BusinessDay (Nigeria). Indicators: VIX, US Treasury yields (3-month to 30-year), US Dollar Index, 8 currency pairs (ECB reference rates), Bitcoin, Ether |
+| 📈 Stocks & NASDAQ | **Buy / Hold / Sell** signals for your watchlist, 38 major stocks, market ETFs, and US and 18 international stock markets | Prices: Cboe, Yahoo Finance; international markets use country ETFs (labelled). News: MarketWatch, FT, BBC, Investing.com, Economic Times, SCMP, Guardian, BusinessDay, Arab News |
+| 🪙 Commodities | Gold, silver, platinum, palladium; copper, base metals, lithium, uranium; WTI, Brent, natural gas, gasoline; corn, wheat, soybeans; sugar, an agriculture basket and a broad commodities basket. Grouped by type, each with a **Buy / Hold / Sell** signal and a group verdict | Futures prices (Yahoo Finance / Stooq) with labelled ETF fallbacks via Cboe. News: OilPrice, MINING.COM, Investing.com, CNBC Energy, plus commodity coverage from BBC, SCMP, Economic Times, BusinessDay, Daily Maverick, Arab News |
+| 🏛️ Political News | Elections, governments, sanctions, diplomacy | Politico (US & Europe), NPR, Guardian, BBC, Foreign Policy, Euractiv, SCMP, The Hindu, Al Jazeera, Africanews, MercoPress, International Crisis Group, UN News |
+| 🛡️ Cybersecurity Threats | Actively exploited and critical vulnerabilities, national cyber alerts, breaches, ransomware | CISA KEV & advisories, NIST NVD, UK NCSC, CERT-EU, SANS ISC, Krebs, BleepingComputer, The Hacker News, The Record, SecurityWeek, Dark Reading, ESET, Hacker News |
+| 🌪️ Weather & Hazards | Disaster alerts, earthquakes, cyclones, tsunamis, volcanoes, wildfires, severe weather | GDACS (UN/EU), USGS, EMSC, US National Weather Service, National Hurricane Center, Pacific Tsunami Warning Center, Smithsonian volcano reports, NASA EONET, UN climate news, plus hazard coverage from BBC, SCMP, Africanews, Al Jazeera |
+| 💬 Social Media Commentary | What people are discussing now | Mastodon, Lemmy, Bluesky (Reuters, AP), Reddit r/worldnews, Hacker News |
+| 📰 Mainstream Headlines | Top stories from every continent | BBC, Guardian, DW, France 24, Euronews, Sky, NYT, NPR, CBC, ABC (US & Australia), Al Jazeera, Arab News, Africanews, AllAfrica, Premium Times, Daily Maverick, SCMP, Japan Times, The Hindu, Times of India, Straits Times, CNA, MercoPress, UN News |
+| 🤖 AI Daily News | AI research, products, regulation | The Verge, TechCrunch, MIT Technology Review, Ars Technica, Guardian, BBC, SCMP, OpenAI, Google DeepMind, Hugging Face, arXiv, Hacker News |
+| ⭐ Your own tabs | Any topic you choose (Settings → Custom tabs) | GDELT + optional Hacker News / RSS, fetched live in your browser |
 
-### Analysis & recommendations
+The live list of sources, and whether each one is working, is under **Settings → Data sources** and in each tab's "sources reporting" line. Every news item is labelled with its region, and news tabs can be filtered by region.
 
-* **Risk scoring.** Every item gets a 0–100 risk score from weighted risk keywords and structured severity (earthquake magnitude, CVSS score, NWS severity, CISA "known ransomware use"). Each tab gets an aggregate score and level (Low → Guarded → Elevated → High → Severe) and a list of "risk drivers". The Overview combines the tabs into a World Risk Index.
-* **Buy / Hold / Sell signals** (stocks and commodities). These come from transparent technical analysis: 20/50/200-day moving averages, RSI(14), MACD(12,26,9), 20-day momentum and volatility. Every signal lists exactly why it was given. *This is educational information, not financial advice.*
-* **🧠 AI briefings (optional).** On any tab, Claude writes an analyst briefing covering the situation, key risks, market implications, what to watch, and a risk rating. It uses your own Anthropic API key, which is stored only in your browser.
+## Data quality & reliability
+
+* **Collected on GitHub's servers every 30 minutes.** Browser restrictions (CORS) and API keys don't apply, and visitors' browsers only load small files from the app's own address.
+* **Checked before publishing.** Every item must have a title, a working link and a date, and must be recent (3 days by default; longer for slow official feeds). Tracking parameters are stripped. Duplicates are removed within a source and across sources, keeping the earliest report.
+* **Prices are validated and have fallbacks.** A symbol needs at least 60 days of history, must not be stale, and must not contain implausible jumps. Each symbol tries several keyless providers in order: official sources first (US Treasury, ECB), then Yahoo Finance, Stooq, Cboe, Coinbase and FRED, and finally a tracking ETF. Every price card says which source was used, and when an ETF stood in.
+* **Failing sources are removed automatically.** Every source's success is recorded on every run. A source that fails **6 runs in a row (about 3 hours)** is hidden from the dashboard, and it returns as soon as it recovers. Reliability is shown as the success rate over the last 48 runs.
+* **Freshness is shown everywhere.** Each tab shows when its data was collected, and warns if that was more than 2 hours ago.
+* **Safeguards on each run.** A run has time budgets and a circuit breaker, so one slow or blocked provider can't hold up the whole collection. If a run fails entirely, the site keeps serving the last good data.
+
+## Analysis & recommendations
+
+* **Risk scoring.** Every item gets a 0–100 risk score from weighted risk keywords and structured severity: earthquake magnitude, GDACS alert colour, CVSS score, NWS severity, and CISA "known ransomware use". Each tab gets an overall score and level (Low → Guarded → Elevated → High → Severe) and a list of "risk drivers". The Overview combines the tabs into a World Risk Index.
+* **Buy / Hold / Sell signals** (stocks, indices and commodities). These come from transparent technical analysis: 20/50/200-day moving averages, RSI(14), MACD(12,26,9), 20-day momentum and volatility. Every signal lists exactly why it was given, and groups get an overall verdict. *This is educational information, not financial advice.*
+* **🧠 AI briefings (optional).** On any tab, Claude writes an analyst briefing covering the situation, key risks, market implications, what to watch, and a risk rating. It uses your own Anthropic API key, stored only in your browser.
 
 ## Getting started
 
-No build step and no server code are needed: it is plain HTML, CSS and JavaScript modules.
+The app is plain HTML, CSS and JavaScript modules, with no build step. The data pipeline is a dependency-free Node script.
 
 ```bash
-npm start          # serves the app at http://localhost:8080
-npm test           # runs the unit tests (Node 18+)
+npm test           # unit tests (Node 20+)
+npm run data       # collect data into ./data (needs internet)
+npm start          # serve the app at http://localhost:8080
 ```
 
-Then open **Settings** (⚙️) to add:
+Optional keys, in **Settings**:
 
-* a free **Twelve Data** API key (https://twelvedata.com/pricing) for stock prices and Buy/Hold/Sell signals
-* an **Anthropic** API key (https://console.anthropic.com/) for AI briefings (optional)
-* a CORS proxy URL (optional). Some RSS feeds block direct browser access, and a proxy lets them load.
-
-Every news, weather, cyber and social tab works without any keys.
+* **Anthropic** API key: enables AI briefings.
+* **Twelve Data** API key: lets you track watchlist symbols that aren't in the built-in lists.
 
 ### Install on your devices
 
-1. Deploy the app (see below) or serve it over HTTPS.
+1. Open https://alisonadrianhunt-max.github.io/daytrader/
 2. **iPhone / iPad (Safari):** Share → *Add to Home Screen*.
 3. **Android (Chrome):** menu ⋮ → *Install app* / *Add to Home screen*.
 4. **Windows 11 / Mac (Chrome or Edge):** click the install icon in the address bar. On Mac Safari, use File → *Add to Dock*.
 
-### Deploy to GitHub Pages
+### Deployment
 
-The workflow `.github/workflows/pages.yml` runs the tests and publishes the site whenever `main` changes. You turn it on once: in the repository go to **Settings → Pages → Build and deployment → Source: GitHub Actions**. The app will then be at `https://<owner>.github.io/daytrader/`.
+`.github/workflows/pages.yml` runs the tests, collects data, and deploys to GitHub Pages:
 
-## Adding tabs later
+* on every push to `main`;
+* every 30 minutes, on a schedule;
+* on demand, using **Actions → Test, collect data & deploy → Run workflow**.
 
-The app is built to grow:
+Each run's job summary has a full source report. Note: GitHub pauses scheduled workflows in a repository with no activity for 60 days. Re-enable it from the Actions tab if that happens.
 
-* **Users** can add tabs at runtime from **Settings → Custom tabs** by giving keywords, a subreddit, a Hacker News search or RSS feeds.
-* **Developers** add a built-in tab by appending one object to `BUILTIN_TABS` in `js/tabs/registry.js`. New data sources and new kinds of view each plug into a single registry.
+## Adding tabs and sources
 
-See **[docs/ADDING_TABS.md](docs/ADDING_TABS.md)** for step-by-step instructions.
+See **[docs/ADDING_TABS.md](docs/ADDING_TABS.md)**. In short:
+
+* add a source → one line in `pipeline/sources.mjs`;
+* add a tab → one entry in `js/tabs/registry.js`, plus sources tagged with its id;
+* add a commodity, index or stock → one line in `PRICE_GROUPS`.
 
 ## Project layout
 
 ```
-index.html               app shell
-css/styles.css           responsive light/dark styles
-sw.js                    service worker (offline + installable)
-manifest.webmanifest     PWA manifest
-js/app.js                tab bar, router, refresh loop, view registry
-js/tabs/registry.js      ← tab definitions (add tabs here)
-js/sources/adapters.js   ← data-source adapters (add sources here)
-js/sources/index.js      loads, caches, de-duplicates and scores a tab's sources
-js/sources/markets.js    price history (Twelve Data)
-js/analysis/risk.js      risk scoring and aggregation
-js/analysis/technicals.js  SMA / RSI / MACD / volatility and the Buy/Hold/Sell engine
-js/ai/claude.js          optional Claude AI briefings
-js/ui/*.js               views: feed, markets, commodities, overview, settings
-tests/                   unit tests (node --test)
+index.html                 app shell
+css/styles.css             responsive light/dark styles
+sw.js                      service worker (offline + installable)
+pipeline/sources.mjs       ← every data source and price symbol
+pipeline/build.mjs         collector: fetch, validate, dedupe, health tracking, write data/
+js/app.js                  tab bar, router, refresh loop, view registry
+js/tabs/registry.js        ← tab definitions
+js/core/snapshot.js        reads data/*.json
+js/sources/                tab loading, live adapters for custom tabs, prices
+js/analysis/               risk scoring; SMA / RSI / MACD Buy/Hold/Sell engine
+js/ai/claude.js            optional Claude AI briefings
+js/ui/*.js                 views: feed, markets, commodities, price groups, overview, settings
+tests/                     unit tests (node --test)
 ```
 
-## Privacy & limits
+## Privacy
 
-* Settings and API keys are kept in your browser's local storage. They are sent only to the service each key belongs to.
-* Data is cached locally, 15 minutes by default (you can change this). Prices are cached for 1 hour to stay within free API limits.
-* GDELT allows one request every 5 seconds. Day Trader queues requests automatically, so scanning every tab takes about a minute the first time.
+* Settings and API keys are kept in your browser's local storage, and are sent only to the service each key belongs to.
 * Risk scores and signals are automated estimates. Always check the original sources before you act.

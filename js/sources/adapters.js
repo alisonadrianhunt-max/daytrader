@@ -1,5 +1,6 @@
-// Data-source adapters. Each adapter takes the source options from the tab
-// definition and returns an array of normalized items:
+// Live (in-browser) adapters for user-created custom tabs. Built-in tabs use
+// data collected server-side by the pipeline (pipeline/build.mjs) instead.
+// Each adapter takes the source options and returns normalized items:
 //
 //   { id, title, url, source, publishedAt (ms epoch), summary, severity (0..1), tags: [] }
 //
@@ -82,152 +83,6 @@ async function hn({ query, frontPage = false, days = 2, max = 30 }) {
   }));
 }
 
-// --- Reddit public JSON ---
-async function reddit({ subreddit, filter, max = 30 }) {
-  const url = `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/hot.json?limit=${max}&raw_json=1`;
-  const { data } = await fetchData(url);
-  let posts = (data?.data?.children || []).map((c) => c.data).filter((p) => !p.stickied);
-  if (filter) posts = posts.filter((p) => filter.test(p.title));
-  return posts.map((p) => ({
-    id: `rd-${p.id}`,
-    title: p.title,
-    url: p.url_overridden_by_dest && /^https?:/.test(p.url_overridden_by_dest) ? p.url_overridden_by_dest : `https://www.reddit.com${p.permalink}`,
-    discussionUrl: `https://www.reddit.com${p.permalink}`,
-    source: `r/${p.subreddit}`,
-    publishedAt: (p.created_utc || 0) * 1000,
-    summary: clip(stripHtml(p.selftext)) || `${p.score} upvotes · ${p.num_comments} comments`,
-    severity: 0,
-    engagement: (p.score || 0) + 2 * (p.num_comments || 0),
-    tags: ['social'],
-  }));
-}
-
-// --- Mastodon public hashtag timeline ---
-async function mastodon({ tag, instance = 'mastodon.social', max = 30 }) {
-  const url = `https://${instance}/api/v1/timelines/tag/${encodeURIComponent(tag)}?limit=${max}`;
-  const { data } = await fetchData(url);
-  return (Array.isArray(data) ? data : []).map((s) => {
-    const text = stripHtml(s.content);
-    return {
-      id: `md-${s.id}`,
-      title: clip(text, 160) || '(media post)',
-      url: s.url || s.uri,
-      source: `@${s.account?.acct || 'unknown'} · #${tag}`,
-      publishedAt: Date.parse(s.created_at) || Date.now(),
-      summary: clip(text, 400),
-      severity: 0,
-      engagement: (s.reblogs_count || 0) * 2 + (s.favourites_count || 0),
-      tags: ['social'],
-    };
-  });
-}
-
-// --- USGS earthquakes (M4.5+, past day) ---
-async function usgs({ feed = '4.5_day' } = {}) {
-  const { data } = await fetchData(`https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/${feed}.geojson`);
-  const alertSeverity = { green: 0.3, yellow: 0.6, orange: 0.8, red: 1 };
-  return (data.features || []).map((f) => {
-    const p = f.properties;
-    const magSeverity = Math.max(0, Math.min(1, (p.mag - 4.5) / 3)); // M4.5 -> 0, M7.5 -> 1
-    return {
-      id: `eq-${f.id}`,
-      title: p.title || `M${p.mag} earthquake — ${p.place}`,
-      url: p.url,
-      source: 'USGS',
-      publishedAt: p.time,
-      summary: `Magnitude ${p.mag}${p.tsunami ? ' · tsunami flag issued' : ''}${p.alert ? ` · PAGER alert: ${p.alert}` : ''}`,
-      severity: Math.max(magSeverity, alertSeverity[p.alert] || 0, p.tsunami ? 0.7 : 0),
-      tags: ['earthquake'],
-    };
-  });
-}
-
-// --- US National Weather Service active alerts (Severe + Extreme) ---
-async function nws() {
-  const { data } = await fetchData('https://api.weather.gov/alerts/active?status=actual&severity=Extreme,Severe', {
-    headers: { Accept: 'application/geo+json' },
-  });
-  return (data.features || []).slice(0, 60).map((f) => {
-    const p = f.properties;
-    return {
-      id: `nws-${p.id}`,
-      title: `${p.event} — ${clip(p.areaDesc, 90)}`,
-      url: `https://alerts.weather.gov/search?id=${encodeURIComponent(p.id)}`,
-      source: 'NWS (US)',
-      publishedAt: Date.parse(p.sent) || Date.now(),
-      summary: clip(p.headline || p.description, 320),
-      severity: p.severity === 'Extreme' ? 0.9 : 0.6,
-      tags: ['weather'],
-    };
-  });
-}
-
-// --- NASA EONET natural events (wildfires, storms, volcanoes, floods...) ---
-async function eonet({ days = 7, max = 50 } = {}) {
-  const { data } = await fetchData(`https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=${days}&limit=${max}`);
-  const catSeverity = { 'Severe Storms': 0.6, Volcanoes: 0.6, Wildfires: 0.4, Floods: 0.6, Earthquakes: 0.5 };
-  return (data.events || []).map((e) => {
-    const cat = e.categories?.[0]?.title || 'Event';
-    const last = e.geometry?.[e.geometry.length - 1];
-    return {
-      id: `eonet-${e.id}`,
-      title: e.title,
-      url: e.sources?.[0]?.url || e.link,
-      source: `NASA EONET · ${cat}`,
-      publishedAt: Date.parse(last?.date) || Date.now(),
-      summary: `${cat}${last?.magnitudeValue ? ` · ${last.magnitudeValue} ${last.magnitudeUnit || ''}` : ''}`,
-      severity: catSeverity[cat] ?? 0.3,
-      tags: ['natural-event'],
-    };
-  });
-}
-
-// --- CISA Known Exploited Vulnerabilities catalog ---
-async function cisa({ max = 25 } = {}) {
-  const { data } = await fetchData('https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', {
-    timeoutMs: 30_000,
-  });
-  return (data.vulnerabilities || [])
-    .slice()
-    .sort((a, b) => (a.dateAdded < b.dateAdded ? 1 : -1))
-    .slice(0, max)
-    .map((v) => ({
-      id: `kev-${v.cveID}`,
-      title: `${v.cveID}: ${v.vulnerabilityName}`,
-      url: `https://nvd.nist.gov/vuln/detail/${v.cveID}`,
-      source: 'CISA KEV (actively exploited)',
-      publishedAt: Date.parse(v.dateAdded) || Date.now(),
-      summary: clip(`${v.vendorProject} ${v.product} — ${v.shortDescription}`, 360),
-      severity: v.knownRansomwareCampaignUse === 'Known' ? 1 : 0.85,
-      tags: ['cve', 'exploited'],
-    }));
-}
-
-// --- NIST NVD: critical CVEs published in the last N days ---
-async function nvd({ days = 7, max = 40 } = {}) {
-  const fmt = (d) => d.toISOString().replace('Z', '');
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 86400_000);
-  const url =
-    `https://services.nvd.nist.gov/rest/json/cves/2.0?cvssV3Severity=CRITICAL&resultsPerPage=${max}` +
-    `&pubStartDate=${fmt(start)}&pubEndDate=${fmt(end)}`;
-  const { data } = await fetchData(url, { timeoutMs: 30_000 });
-  return (data.vulnerabilities || []).map(({ cve }) => {
-    const desc = cve.descriptions?.find((d) => d.lang === 'en')?.value || '';
-    const score = cve.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore ?? cve.metrics?.cvssMetricV30?.[0]?.cvssData?.baseScore;
-    return {
-      id: `nvd-${cve.id}`,
-      title: `${cve.id}${score ? ` (CVSS ${score})` : ''}`,
-      url: `https://nvd.nist.gov/vuln/detail/${cve.id}`,
-      source: 'NIST NVD · Critical',
-      publishedAt: Date.parse(cve.published) || Date.now(),
-      summary: clip(desc, 360),
-      severity: score ? Math.min(1, score / 10) : 0.9,
-      tags: ['cve'],
-    };
-  });
-}
-
 // --- Generic RSS / Atom feed (direct, or through the optional CORS proxy) ---
 export function parseFeed(xmlText, name) {
   const doc = new DOMParser().parseFromString(xmlText, 'text/xml');
@@ -266,7 +121,7 @@ async function rss({ url, name }) {
   }
 }
 
-export const ADAPTERS = { gdelt, hn, reddit, mastodon, usgs, nws, eonet, cisa, nvd, rss };
+export const ADAPTERS = { gdelt, hn, rss };
 
 export function describeSource(src) {
   switch (src.type) {
@@ -274,20 +129,6 @@ export function describeSource(src) {
       return 'GDELT global news';
     case 'hn':
       return 'Hacker News';
-    case 'reddit':
-      return `Reddit r/${src.subreddit}`;
-    case 'mastodon':
-      return `Mastodon #${src.tag}`;
-    case 'usgs':
-      return 'USGS earthquakes';
-    case 'nws':
-      return 'US National Weather Service';
-    case 'eonet':
-      return 'NASA EONET';
-    case 'cisa':
-      return 'CISA KEV catalog';
-    case 'nvd':
-      return 'NIST NVD';
     case 'rss':
       return src.name || 'RSS feed';
     default:

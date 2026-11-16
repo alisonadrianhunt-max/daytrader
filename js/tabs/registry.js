@@ -10,8 +10,9 @@
 //   icon        emoji / short glyph
 //   description one-line explanation shown under the tab heading
 //   view        'feed' (default) | 'markets' | 'commodities' | 'overview'
-//   groups      (commodities view) [{ id, title, icon, items: [{ symbol, name }] }]
-//   sources     array of { type, ...options } — see js/sources/index.js
+//   snapshot    true = data comes from the pipeline (pipeline/sources.mjs lists the sources)
+//   sources     custom tabs only: live browser sources { type, ...options } — see js/sources/adapters.js
+//   priceGroups key into data/prices.json groups (prices + Buy/Hold/Sell signals)
 //   lexicon     optional extra { word: weight } risk keywords for this tab
 //   aiFocus     optional instruction appended to the AI analyst prompt
 
@@ -23,21 +24,14 @@ export const BUILTIN_TABS = [
     title: 'Overview',
     icon: '🌐',
     view: 'overview',
-    description: 'Global risk dashboard — every tab scored on one screen.',
+    description: 'Global risk dashboard — every area scored on one screen.',
   },
   {
     id: 'military',
     title: 'Military Conflict',
     icon: '⚔️',
-    description: 'Armed conflict, strikes, troop movements and ceasefire news worldwide.',
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '(airstrike OR missile OR troops OR "military" OR invasion OR "drone strike" OR ceasefire OR shelling OR insurgents OR "armed forces")',
-      },
-      { type: 'reddit', subreddit: 'worldnews', filter: /(war|strike|missile|troop|military|attack|army|navy|drone)/i },
-    ],
+    snapshot: true,
+    description: 'Armed conflict, strikes, troop movements and ceasefires — defence press, UN, Crisis Group and outlets on every continent.',
     lexicon: { nuclear: 30, invasion: 25, mobilization: 20, casualties: 15, offensive: 12 },
     aiFocus: 'Focus on escalation risk, regions most at risk, and likely market spill-overs (energy, defence, safe havens).',
   },
@@ -45,15 +39,9 @@ export const BUILTIN_TABS = [
     id: 'finance',
     title: 'World Financial System',
     icon: '🏦',
-    description: 'Central banks, sovereign debt, banking stress, currencies and inflation.',
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '("central bank" OR "federal reserve" OR ECB OR IMF OR "bond yields" OR "interest rates" OR inflation OR "banking crisis" OR "debt ceiling" OR recession OR currency)',
-      },
-      { type: 'hn', query: 'federal reserve OR inflation OR recession OR bank', days: 3 },
-    ],
+    snapshot: true,
+    priceGroups: 'finance',
+    description: 'Central banks (Fed, ECB, Bank of England, RBA, BIS), Treasury yields, currencies, market stress and financial news worldwide.',
     lexicon: { default: 25, contagion: 25, 'bank run': 30, downgrade: 15, recession: 15, liquidity: 10 },
     aiFocus: 'Focus on systemic risk: rates, credit, liquidity, FX, and what it means for equity investors.',
   },
@@ -62,14 +50,9 @@ export const BUILTIN_TABS = [
     title: 'Stocks & NASDAQ',
     icon: '📈',
     view: 'markets',
-    description: 'Buy / Hold / Sell signals from technical analysis of your watchlist (NYSE & NASDAQ).',
-    sources: [
-      {
-        type: 'gdelt',
-        query: '("stock market" OR NASDAQ OR "Dow Jones" OR "S&P 500" OR earnings OR "Wall Street")',
-        max: 30,
-      },
-    ],
+    snapshot: true,
+    priceGroups: 'markets',
+    description: 'Buy / Hold / Sell signals for your watchlist, major NYSE & NASDAQ stocks and stock indices on every continent.',
     aiFocus: 'Comment on each signal, flag news that contradicts the technicals, and remind the reader this is not financial advice.',
   },
   {
@@ -77,73 +60,9 @@ export const BUILTIN_TABS = [
     title: 'Commodities',
     icon: '🪙',
     view: 'commodities',
-    description: 'Gold, silver and other metals, energy and agriculture — grouped by type with Buy / Hold / Sell signals.',
-    // Prices come from liquid US-listed ETFs that track each commodity (they work on the
-    // free Twelve Data plan). Edit a group or add a new one here; each entry is
-    // { symbol, name } and needs ~60+ days of daily history.
-    groups: [
-      {
-        id: 'precious',
-        title: 'Precious metals',
-        icon: '🥇',
-        items: [
-          { symbol: 'GLD', name: 'Gold' },
-          { symbol: 'SLV', name: 'Silver' },
-          { symbol: 'PPLT', name: 'Platinum' },
-          { symbol: 'PALL', name: 'Palladium' },
-        ],
-      },
-      {
-        id: 'industrial',
-        title: 'Industrial & battery metals',
-        icon: '🔩',
-        items: [
-          { symbol: 'CPER', name: 'Copper' },
-          { symbol: 'DBB', name: 'Base metals (aluminium, zinc, copper)' },
-          { symbol: 'LIT', name: 'Lithium & battery metals' },
-          { symbol: 'URA', name: 'Uranium' },
-        ],
-      },
-      {
-        id: 'energy',
-        title: 'Energy',
-        icon: '🛢️',
-        items: [
-          { symbol: 'USO', name: 'Crude oil (WTI)' },
-          { symbol: 'BNO', name: 'Crude oil (Brent)' },
-          { symbol: 'UNG', name: 'Natural gas' },
-          { symbol: 'UGA', name: 'Gasoline' },
-        ],
-      },
-      {
-        id: 'grains',
-        title: 'Grains & oilseeds',
-        icon: '🌾',
-        items: [
-          { symbol: 'CORN', name: 'Corn' },
-          { symbol: 'WEAT', name: 'Wheat' },
-          { symbol: 'SOYB', name: 'Soybeans' },
-        ],
-      },
-      {
-        id: 'softs',
-        title: 'Softs & broad agriculture',
-        icon: '☕',
-        items: [
-          { symbol: 'CANE', name: 'Sugar' },
-          { symbol: 'DBA', name: 'Agriculture basket (coffee, cocoa, cattle, grains)' },
-          { symbol: 'WOOD', name: 'Timber' },
-        ],
-      },
-    ],
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '(gold OR silver OR copper OR "crude oil" OR OPEC OR "natural gas" OR wheat OR commodities OR "commodity prices" OR lithium OR platinum)',
-        max: 40,
-      },
-    ],
+    snapshot: true,
+    priceGroups: 'commodities',
+    description: 'Gold, silver and other metals, energy, grains, softs and livestock — grouped by type with Buy / Hold / Sell signals.',
     lexicon: { embargo: 20, 'supply disruption': 20, shortage: 15, 'export ban': 20, 'production cut': 12, drought: 12 },
     aiFocus:
       'Comment on each commodity group: supply/demand drivers in the news, whether the news supports or contradicts the technical signal, and safe-haven flows into gold and silver. Not financial advice.',
@@ -152,15 +71,8 @@ export const BUILTIN_TABS = [
     id: 'politics',
     title: 'Political News',
     icon: '🏛️',
-    description: 'Elections, governments, sanctions, diplomacy and policy shifts.',
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '(election OR parliament OR sanctions OR "prime minister" OR president OR congress OR senate OR coup OR referendum OR diplomacy)',
-      },
-      { type: 'reddit', subreddit: 'geopolitics' },
-    ],
+    snapshot: true,
+    description: 'Elections, governments, sanctions and diplomacy from the Americas, Europe, Africa, the Middle East and Asia-Pacific.',
     lexicon: { coup: 30, impeachment: 15, unrest: 15, martial: 25, protest: 8 },
     aiFocus: 'Focus on political instability, policy changes with economic impact, and geopolitical alignment shifts.',
   },
@@ -168,83 +80,42 @@ export const BUILTIN_TABS = [
     id: 'cyber',
     title: 'Cybersecurity Threats',
     icon: '🛡️',
-    description: 'Actively exploited vulnerabilities, critical CVEs, breaches and ransomware.',
-    sources: [
-      { type: 'cisa' },
-      { type: 'nvd' },
-      {
-        type: 'gdelt',
-        query: '(ransomware OR "data breach" OR cyberattack OR hackers OR "zero-day" OR malware OR "cyber attack")',
-        max: 40,
-      },
-      { type: 'hn', query: 'vulnerability OR breach OR ransomware OR exploit', days: 3 },
-    ],
+    snapshot: true,
+    description: 'Actively exploited vulnerabilities, critical CVEs and national cyber agency alerts (US, UK, EU, Australia), plus security news.',
     lexicon: { 'zero-day': 25, 'actively exploited': 30, ransomware: 20, 'critical infrastructure': 25, breach: 12 },
     aiFocus: 'Focus on what is being actively exploited, which sectors are targeted, and recommended defensive actions.',
   },
   {
     id: 'weather',
-    title: 'Weather Events',
+    title: 'Weather & Hazards',
     icon: '🌪️',
-    description: 'Severe weather alerts, earthquakes, wildfires, storms and volcanoes.',
-    sources: [
-      { type: 'nws' },
-      { type: 'usgs' },
-      { type: 'eonet' },
-      {
-        type: 'gdelt',
-        query: '(hurricane OR typhoon OR cyclone OR flood OR wildfire OR tornado OR heatwave OR drought OR blizzard)',
-        max: 30,
-      },
-    ],
-    lexicon: { 'category 5': 30, 'category 4': 25, evacuation: 20, tsunami: 30, 'state of emergency': 20 },
+    snapshot: true,
+    description: 'Global disaster alerts (GDACS), earthquakes (USGS, EMSC), cyclones, tsunamis, volcanoes, wildfires and severe weather.',
+    lexicon: { 'category 5': 30, 'category 4': 25, evacuation: 20, tsunami: 30, 'state of emergency': 20, 'red alert': 30, 'orange alert': 18 },
     aiFocus: 'Focus on human impact, supply chain / commodity disruption, and insurance exposure.',
   },
   {
     id: 'social',
     title: 'Social Media Commentary',
     icon: '💬',
-    description: 'What people are saying right now on Reddit, Mastodon and Hacker News.',
-    sources: [
-      { type: 'reddit', subreddit: 'worldnews' },
-      { type: 'reddit', subreddit: 'news' },
-      { type: 'mastodon', tag: 'news' },
-      { type: 'mastodon', tag: 'breakingnews' },
-      { type: 'hn', frontPage: true },
-    ],
+    snapshot: true,
+    description: 'What people are discussing now on Mastodon, Lemmy, Bluesky, Reddit and Hacker News.',
     aiFocus: 'Focus on the dominant narratives and sentiment, and separate rumours from confirmed reports.',
   },
   {
     id: 'headlines',
     title: 'Mainstream Headlines',
     icon: '📰',
-    description: 'Top stories from major international news organisations.',
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '(domain:reuters.com OR domain:apnews.com OR domain:bbc.co.uk OR domain:bbc.com OR domain:theguardian.com OR domain:nytimes.com OR domain:cnn.com OR domain:aljazeera.com OR domain:npr.org OR domain:ft.com)',
-        max: 75,
-      },
-      { type: 'rss', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', name: 'BBC World' },
-      { type: 'rss', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', name: 'NYT World' },
-    ],
+    snapshot: true,
+    description: 'Top stories from major news organisations across every continent.',
     aiFocus: 'Summarise the day’s top stories and rank them by global risk impact.',
   },
   {
     id: 'ai',
     title: 'AI Daily News',
     icon: '🤖',
-    description: 'Artificial intelligence research, products, policy and industry news.',
-    sources: [
-      {
-        type: 'gdelt',
-        query:
-          '("artificial intelligence" OR OpenAI OR Anthropic OR "Google DeepMind" OR "machine learning" OR "large language model" OR Nvidia OR chatbot)',
-      },
-      { type: 'hn', query: 'AI OR LLM OR GPT OR Claude OR "machine learning"', days: 1 },
-      { type: 'reddit', subreddit: 'artificial' },
-    ],
+    snapshot: true,
+    description: 'AI research, products, policy and industry news from labs, tech press and arXiv.',
     lexicon: { regulation: 10, ban: 12, lawsuit: 10, outage: 10, deepfake: 12 },
     aiFocus: 'Focus on AI developments with business, regulatory or security impact.',
   },
@@ -255,7 +126,6 @@ export function customTabToDefinition(c) {
   const sources = [];
   if (c.keywords?.trim()) sources.push({ type: 'gdelt', query: toGdeltQuery(c.keywords) });
   if (c.hnQuery?.trim()) sources.push({ type: 'hn', query: c.hnQuery.trim(), days: 3 });
-  if (c.subreddit?.trim()) sources.push({ type: 'reddit', subreddit: c.subreddit.trim().replace(/^r\//, '') });
   for (const url of (c.rss || '').split(/\s+/).filter(Boolean)) sources.push({ type: 'rss', url });
   return {
     id: c.id,

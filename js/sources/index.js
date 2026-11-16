@@ -5,6 +5,7 @@ import { ADAPTERS, describeSource } from './adapters.js';
 import { cacheGet, cacheSet } from '../core/cache.js';
 import { loadSettings } from '../core/settings.js';
 import { scoreItems } from '../analysis/risk.js';
+import { loadSnapshot } from '../core/snapshot.js';
 
 function sourceKey(src) {
   return 'src:' + JSON.stringify(src, (k, v) => (v instanceof RegExp ? v.source : v));
@@ -42,7 +43,27 @@ export function dedupe(items) {
  * Loads all sources for a tab. Sources resolve independently, and
  * `onProgress` is called as each one lands so the UI fills in progressively.
  */
-export async function loadTab(tab, { force = false, onProgress } = {}) {
+export async function loadTab(tab, opts = {}) {
+  return tab.snapshot ? loadSnapshotTab(tab, opts) : loadLiveTab(tab, opts);
+}
+
+/** Built-in tabs: one same-origin file prepared by the pipeline (pipeline/build.mjs). */
+async function loadSnapshotTab(tab, { force = false, onProgress } = {}) {
+  try {
+    const snap = await loadSnapshot(`tabs/${tab.id}.json`, { force });
+    const items = scoreItems(snap.items || [], tab.lexicon).sort((a, b) => b.publishedAt - a.publishedAt);
+    const result = { items, errors: [], fetchedAt: Date.parse(snap.generatedAt) || Date.now(), generatedAt: snap.generatedAt, sourceList: snap.sources || [], pending: 0 };
+    onProgress?.(result);
+    return result;
+  } catch (err) {
+    const result = { items: [], errors: [{ source: 'Day Trader data', message: err.message }], fetchedAt: Date.now(), sourceList: [], pending: 0 };
+    onProgress?.(result);
+    return result;
+  }
+}
+
+/** Custom tabs: fetched live in the browser from CORS-friendly sources. */
+async function loadLiveTab(tab, { force = false, onProgress } = {}) {
   const sources = tab.sources || [];
   const results = new Array(sources.length);
   const errors = [];

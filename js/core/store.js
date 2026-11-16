@@ -8,6 +8,8 @@ export const store = {
   briefings: new Map(),
   /** symbol -> analysis result or { error } */
   markets: new Map(),
+  /** 'commodities' | 'markets' | 'finance' -> { groups, generatedAt, error, loading } */
+  priceGroups: new Map(),
   /** Per-tab UI state (filters etc.) that survives tab switches. */
   ui(tabId, defaults) {
     if (!uiState.has(tabId)) uiState.set(tabId, { ...defaults });

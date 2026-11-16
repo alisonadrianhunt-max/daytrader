@@ -47,8 +47,10 @@ function renderNav(activeId) {
 }
 
 /** Loads a tab's sources (deduplicated across concurrent callers) and redraws when it's on screen. */
+const hasData = (t) => t.snapshot || t.sources?.length;
+
 function refreshTab(tab, force = false) {
-  if (!tab.sources?.length) return Promise.resolve();
+  if (!hasData(tab)) return Promise.resolve();
   if (loading.has(tab.id) && !force) return loading.get(tab.id);
   const p = loadTab(tab, {
     force,
@@ -61,13 +63,15 @@ function refreshTab(tab, force = false) {
   return p;
 }
 
-async function scanAll() {
+async function scanAll(force = false) {
   if (scanning) return;
   scanning = true;
   current.draw?.();
   try {
-    // Sequential so the per-host rate limits interleave nicely and cached tabs finish instantly.
-    for (const t of allTabs()) if (t.sources?.length) await refreshTab(t);
+    // Built-in tabs are small same-origin files: load them together.
+    await Promise.all(allTabs().filter((t) => t.snapshot).map((t) => refreshTab(t, force)));
+    // Custom (live) tabs one at a time so per-host rate limits interleave.
+    for (const t of allTabs()) if (!t.snapshot && t.sources?.length) await refreshTab(t, force);
   } finally {
     scanning = false;
     current.draw?.();
