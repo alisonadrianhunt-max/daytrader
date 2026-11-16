@@ -439,7 +439,7 @@ async function stooqHistory(symbol) {
 // FRED (Federal Reserve Bank of St. Louis): free CSV download, no key.
 async function fredHistory(series) {
   const start = new Date(Date.now() - 400 * 86400_000).toISOString().slice(0, 10);
-  const csv = await http(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${start}`, { timeoutMs: 20_000 });
+  const csv = await http(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(series)}&cosd=${start}`, { timeoutMs: 30_000, retries: 0 });
   const lines = csv.trim().split('\n');
   if (!/date/i.test(lines[0] || '')) throw new Error(`unexpected response: ${csv.slice(0, 60).replace(/\s+/g, ' ')}`);
   const points = lines.slice(1).map((l) => l.split(',')).filter((r) => r[1] !== '' && r[1] !== '.' && Number.isFinite(+r[1])).map((r) => [r[0], +r[1]]);
@@ -462,29 +462,112 @@ async function coinbaseHistory(product) {
   return { points, currency: 'USD', exchange: 'Coinbase', source: 'Coinbase' };
 }
 
+// US Treasury daily par yield curve (official CSV, no key). One file per year.
+const treasuryYears = new Map();
+function treasuryYear(year) {
+  if (!treasuryYears.has(year)) {
+    const url = `https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/${year}/all?type=daily_treasury_yield_curve&field_tdr_date_value=${year}&page&_format=csv`;
+    treasuryYears.set(
+      year,
+      http(url, { timeoutMs: 30_000 }).then((csv) => {
+        const lines = csv.trim().split('\n');
+        const head = lines[0].split(',').map((h) => h.replace(/"/g, '').trim());
+        if (head[0] !== 'Date') throw new Error(`unexpected response: ${csv.slice(0, 60).replace(/\s+/g, ' ')}`);
+        return lines.slice(1).map((l) => {
+          const cells = l.split(',').map((c) => c.replace(/"/g, '').trim());
+          const [m, d, y] = cells[0].split('/');
+          return Object.fromEntries([['date', `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`], ...head.slice(1).map((h, i) => [h, cells[i + 1]])]);
+        });
+      }),
+    );
+  }
+  return treasuryYears.get(year);
+}
+async function treasuryHistory(column) {
+  const y = new Date().getUTCFullYear();
+  const rows = (await Promise.all([treasuryYear(y - 1), treasuryYear(y)])).flat();
+  const points = rows
+    .filter((r) => r[column] !== undefined && r[column] !== '' && Number.isFinite(+r[column]))
+    .map((r) => [r.date, +r[column]])
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  return { points, currency: '%', exchange: 'US Treasury', source: 'US Treasury (daily par yield curve)' };
+}
+
+// ECB euro foreign-exchange reference rates via the Frankfurter API (no key).
+const fxCache = new Map();
+function fxSeries(from, to) {
+  const key = `${from}>${to}`;
+  if (!fxCache.has(key)) {
+    const start = new Date(Date.now() - 380 * 86400_000).toISOString().slice(0, 10);
+    fxCache.set(
+      key,
+      (async () => {
+        let lastErr;
+        for (const host of ['https://api.frankfurter.app', 'https://api.frankfurter.dev/v1']) {
+          try {
+            const data = await http(`${host}/${start}..?from=${from}&to=${to}`, { as: 'json', timeoutMs: 20_000 });
+            if (!data?.rates) throw new Error('unexpected response');
+            return Object.entries(data.rates)
+              .map(([d, r]) => [d, r[to.split(',')[0]], r])
+              .sort((a, b) => (a[0] < b[0] ? -1 : 1));
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+        throw lastErr;
+      })(),
+    );
+  }
+  return fxCache.get(key);
+}
+async function fxHistory(pair) {
+  const [from, to] = pair.split('/');
+  const rows = await fxSeries(from, to);
+  return { points: rows.map(([d, v]) => [d, v]).filter((p) => Number.isFinite(p[1])), currency: to, exchange: 'ECB', source: 'ECB reference rates (Frankfurter)' };
+}
+// US Dollar Index computed with ICE's published DXY formula from ECB rates.
+async function dxyHistory() {
+  const rows = await fxSeries('USD', 'EUR,JPY,GBP,CAD,SEK,CHF');
+  const points = rows
+    .map(([d, , r]) => {
+      const eurusd = 1 / r.EUR;
+      const gbpusd = 1 / r.GBP;
+      const v = 50.14348112 * eurusd ** -0.576 * r.JPY ** 0.136 * gbpusd ** -0.119 * r.CAD ** 0.091 * r.SEK ** 0.042 * r.CHF ** 0.036;
+      return [d, v];
+    })
+    .filter((p) => Number.isFinite(p[1]));
+  return { points, currency: '', exchange: 'ECB', source: 'Computed from ECB rates (ICE DXY formula)' };
+}
+
 const round = (n) => +n.toPrecision(6);
 const isUsTicker = (s) => /^[A-Z]{1,5}(-[A-Z])?$/.test(s);
 
 // Circuit breaker: if a provider fails many times in a row (rate limit / block),
 // stop calling it for the rest of the run instead of waiting on timeouts.
 const breaker = {};
-const BREAKER_LIMIT = 6;
+const BREAKER_LIMIT = { FRED: 3 }; // FRED tends to time out rather than refuse; give up sooner
+const limitFor = (p) => BREAKER_LIMIT[p] ?? 6;
 
-/** Ordered list of [providerName, fn, symbol, note] attempts for one price item. */
+/** Ordered list of [providerName, fn, symbol, proxyNote] attempts for one price item. */
 export function priceChain(item) {
-  const chain = [['Yahoo', yahooHistory, item.symbol]];
+  const chain = [];
+  // Official sources first where they exist; then the general providers.
+  if (item.treasury) chain.push(['Treasury', treasuryHistory, item.treasury]);
+  if (item.fx) chain.push(['ECB', fxHistory, item.fx]);
+  if (item.dxy) chain.push(['ECB', dxyHistory, 'DXY']);
+  chain.push(['Yahoo', yahooHistory, item.symbol]);
   if (item.stooq) chain.push(['Stooq', stooqHistory, item.stooq]);
-  if (item.fred) chain.push(['FRED', fredHistory, item.fred]);
   if (item.cboe || isUsTicker(item.symbol)) chain.push(['Cboe', cboeHistory, item.cboe || item.symbol.replace('-', '.')]);
   if (item.coinbase) chain.push(['Coinbase', coinbaseHistory, item.coinbase]);
-  if (item.proxy) chain.push(['Cboe', cboeHistory, item.proxy, `${item.proxy} ETF (tracks ${item.name.toLowerCase()})`]);
+  if (item.fred) chain.push(['FRED', fredHistory, item.fred]);
+  if (item.proxy) chain.push(['Cboe', cboeHistory, item.proxy, `ETF proxy: ${item.proxy}${item.proxyName ? ` (${item.proxyName})` : ''}`]);
   return chain;
 }
 
 async function priceFor(item) {
   const errors = [];
   for (const [provider, fn, sym, proxyNote] of priceChain(item)) {
-    if ((breaker[provider] || 0) >= BREAKER_LIMIT) {
+    if ((breaker[provider] || 0) >= limitFor(provider)) {
       errors.push(`${provider}: skipped (failing this run)`);
       continue;
     }
@@ -498,7 +581,7 @@ async function priceFor(item) {
       breaker[provider] = 0;
       return {
         name: item.name,
-        unit: proxyNote ? `USD per ${item.proxy} share` : item.unit || '',
+        unit: proxyNote ? `USD (${item.proxy} share)` : item.unit || '',
         currency: h.currency,
         exchange: h.exchange,
         source: proxyNote ? `${h.source} · ${proxyNote}` : h.source,
