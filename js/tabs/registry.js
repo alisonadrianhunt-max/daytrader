@@ -41,7 +41,7 @@ export const BUILTIN_TABS = [
     icon: '🏦',
     snapshot: true,
     priceGroups: 'finance',
-    description: 'Central banks (Fed, ECB, BoE, RBA, IMF, BIS), rates, currencies, market stress and financial news worldwide.',
+    description: 'Central banks (Fed, ECB, Bank of England, RBA, BIS), Treasury yields, currencies, market stress and financial news worldwide.',
     lexicon: { default: 25, contagion: 25, 'bank run': 30, downgrade: 15, recession: 15, liquidity: 10 },
     aiFocus: 'Focus on systemic risk: rates, credit, liquidity, FX, and what it means for equity investors.',
   },

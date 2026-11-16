@@ -677,7 +677,8 @@ export async function main() {
       // A feed that loads but has nothing recent counts as healthy-but-quiet only
       // for slow official feeds (maxAgeDays), topic-filtered feeds, or feeds marked
       // quietOk (e.g. hurricane centres out of season); news feeds must have items.
-      const ok = items.length > 0 || ((src.maxAgeDays || src.filter) && raw.length > 0) || !!src.quietOk;
+      // A topic-filtered feed that loaded is healthy even when nothing matches the topic right now.
+      const ok = items.length > 0 || (src.maxAgeDays && raw.length > 0) || !!src.filter || !!src.quietOk;
       const topReason = Object.entries(rejected).sort((a, b) => b[1] - a[1])[0];
       health[src.id] = nextHealth(prevHealth[src.id], ok, {
         name: src.name, region: src.region, tabs: src.tabs, type: src.type,

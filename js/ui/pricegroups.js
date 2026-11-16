@@ -54,7 +54,7 @@ export function usePriceGroups(key, draw, { force = false, extraSymbols = [] } =
 export function priceStatusLine(state) {
   if (state.error) return `<div class="notice warn">Prices unavailable: ${esc(state.error)}</div>`;
   if (!state.generatedAt) return '';
-  return `<p class="muted small">Prices: daily closes from Yahoo Finance / Stooq, updated ${timeAgo(Date.parse(state.generatedAt))}${
+  return `<p class="muted small">Daily closes from official and market sources (US Treasury, ECB, Cboe, Coinbase, Yahoo Finance and others; each card names its source), updated ${timeAgo(Date.parse(state.generatedAt))}${
     isStale(state.generatedAt) ? ' — <b class="neg">data is older than usual</b>' : ''
   }. No API key needed.</p>`;
 }
@@ -85,7 +85,7 @@ export function indicatorTable(groups) {
       const ind = r?.signal?.indicators;
       const trend = !r?.signal ? '…' : r.signal.score >= 30 ? '▲ Rising' : r.signal.score <= -30 ? '▼ Falling' : '◆ Flat';
       const cls = !r?.signal ? '' : r.signal.score >= 30 ? (r.invert ? 'neg' : 'pos') : r.signal.score <= -30 ? (r.invert ? 'pos' : 'neg') : '';
-      return `<tr><td>${esc(g.icon)} ${esc(i.name)}</td><td class="num">${r?.error ? '<span class="muted small">n/a</span>' : num(ind?.last)}</td><td class="num">${pct(ind?.change5d)}</td><td class="num">${pct(ind?.change20d)}</td><td class="${cls}">${trend}</td></tr>`;
+      return `<tr title="${esc(r?.source ? `Source: ${r.source}${r.lastDate ? `, last close ${r.lastDate}` : ''}` : '')}"><td>${esc(g.icon)} ${esc(i.name)}</td><td class="num">${r?.error ? '<span class="muted small">n/a</span>' : num(ind?.last)}</td><td class="num">${pct(ind?.change5d)}</td><td class="num">${pct(ind?.change20d)}</td><td class="${cls}">${trend}</td></tr>`;
     }),
   );
   if (!rows.length) return '';
