@@ -1,9 +1,14 @@
-name: Test & deploy to GitHub Pages
+name: Test, collect data & deploy
 
+# Runs every 30 minutes: collects all news, hazard, cyber and price data on
+# GitHub's servers (no API keys, no browser CORS limits), checks its quality,
+# records each source's reliability, and publishes the site with fresh data.
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   pull_request:
+  schedule:
+    - cron: '7,37 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -12,8 +17,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || github.ref }}
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
 jobs:
   test:
@@ -25,18 +33,39 @@ jobs:
           node-version: 22
       - run: npm test
 
-  deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+  collect:
     needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Collect and validate data
+        run: node pipeline/build.mjs --out data --prev "$SITE_URL/data/health.json"
+      - name: Sanity check output
+        run: |
+          test -s data/meta.json && test -s data/prices.json && test -s data/health.json
+          ls -la data data/tabs
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: .
+      - uses: actions/upload-artifact@v4
+        if: github.ref != 'refs/heads/main'
+        with:
+          name: data-snapshot
+          path: data
+          retention-days: 3
+
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: collect
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
       - id: deployment
         uses: actions/deploy-pages@v4
